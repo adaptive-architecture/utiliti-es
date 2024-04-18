@@ -1,0 +1,64 @@
+{
+  "name": "@adapt-arch/utiliti-es",
+  "version": "0.0.0",
+  "license": "MIT",
+  "description": "EcmaScript library with common utilities",
+  "keywords": [
+    "adaptive",
+    "architecture",
+    "pubsub",
+    "logger",
+    "utilities",
+    "common"
+  ],
+  "type": "module",
+  "files": [
+    "dist/**",
+    "LICENSE",
+    "README.md"
+  ],
+  "main": "dist/utiliti-es.umd.cjs",
+  "module": "dist/utiliti-es.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/bundle/utiliti-es.js",
+      "require": "./dist/bundle/utiliti-es.cjs",
+      "node": {
+        "import": {
+          "production": "./dist/bundle/utiliti-es.js",
+          "development": "./dist/index.js",
+          "default": "./dist/index.js"
+        }
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adaptive-architecture/utiliti-es"
+  },
+  "bugs": {
+    "url": "https://github.com/adaptive-architecture/utiliti-es/issues"
+  },
+  "author": {
+    "name": "Adaptive Architecture"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "dev": "vite",
+    "prebuild": "node ./ci-cd/empty-output.js",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "npx @biomejs/biome check --apply ./",
+    "test": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.7.0",
+    "@types/node": "20.12.7",
+    "@vitest/coverage-v8": "1.5.0",
+    "typescript": "5.4.5",
+    "vite": "5.2.9",
+    "vitest": "1.5.0"
+  }
+}

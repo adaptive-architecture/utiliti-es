@@ -1,0 +1,1 @@
+alert("Application is running...");
