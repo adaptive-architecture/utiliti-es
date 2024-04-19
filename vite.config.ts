@@ -15,7 +15,7 @@ export default defineConfig({
   },
   test: {
     coverage: {
-      exclude: ["**/ci-cd/**", "**/app/**"],
+      exclude: ["**/ci-cd/**", "**/app/**", "**/docs/**"],
       thresholds: {
         autoUpdate: true,
       },

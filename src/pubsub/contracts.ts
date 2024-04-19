@@ -1,22 +1,25 @@
 /**
- * The basic type of message values that can be published.
+ * The types of message values that can be published.
  */
-export type MessageValueBasicTypes = string | number | boolean | null | undefined | Date;
-
-/**
- * The type of message values that can be published.
- */
-export type MessageValue = MessageValueBasicTypes | MessageValueBasicTypes[] | Record<string, MessageValueBasicTypes>;
+export type MessageValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | Date
+  | Array<MessageValue>
+  | { [key: string]: MessageValue };
 
 /**
  * The type of a message.
  */
-export type MessageType = Record<string, MessageValue>;
+export type MessageData = Record<string, MessageValue>;
 
 /**
  * A simple message handler.
  */
-export type MessageHandler = (topic: string, message: MessageType) => void;
+export type MessageHandler = (topic: string, message: MessageData) => void;
 
 /**
  * A simple pub/sub component.
@@ -26,9 +29,9 @@ export interface IPubSubHub {
    * Publish a message to a topic.
    *
    * @param {string} topic The topic to publish to.
-   * @param {MessageType} message The message to publish.
+   * @param {MessageData} message The message to publish.
    **/
-  publish(topic: string, message: MessageType): void;
+  publish(topic: string, message: MessageData): void;
   /**
    * Subscribe to a topic.
    *

@@ -1,1 +1,2 @@
-export * as pubSub from "./pubsub/index";
+export * from "./pubsub/index";
+export * from "./utils/index";

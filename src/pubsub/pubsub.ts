@@ -1,4 +1,4 @@
-import type { IPubSubHub, MessageHandler, MessageType } from "./contracts";
+import type { IPubSubHub, MessageData, MessageHandler } from "./contracts";
 
 /**
  * A PubSub implementation.
@@ -7,7 +7,7 @@ export class PubSubHub implements IPubSubHub {
   private _subscriptions: Map<string, Map<string, MessageHandler>> = new Map();
 
   /** @inheritdoc */
-  publish(topic: string, message: MessageType): void {
+  publish(topic: string, message: MessageData): void {
     if (!topic) {
       throw new Error("Invalid topic.");
     }
@@ -28,8 +28,12 @@ export class PubSubHub implements IPubSubHub {
 
   /** @inheritdoc */
   subscribe(topic: string, handler: MessageHandler): string | null {
-    if (!topic || !handler) {
-      return null;
+    if (!topic) {
+      throw new Error("Invalid topic.");
+    }
+
+    if (!handler) {
+      throw new Error("Invalid handler.");
     }
 
     let handlers = this._subscriptions.get(topic);
