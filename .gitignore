@@ -25,3 +25,6 @@ dist-ssr
 
 # Coverage directory
 coverage
+
+# Generated docs directory
+docs/.site

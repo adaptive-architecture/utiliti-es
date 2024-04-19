@@ -1,2 +1,1 @@
-export type { IPubSubHub } from "./contracts";
-export { PubSubHub } from "./pubsub";
+export * as pubSub from "./pubsub/index";

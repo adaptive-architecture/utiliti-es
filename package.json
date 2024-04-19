@@ -47,16 +47,18 @@
   "sideEffects": false,
   "scripts": {
     "dev": "vite",
-    "prebuild": "node ./ci-cd/empty-output.js",
+    "empty-output": "node ./ci-cd/empty-output.js",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "npx @biomejs/biome check --apply ./",
-    "test": "vitest run --coverage"
+    "test": "vitest run --coverage",
+    "docs": "typedoc"
   },
   "devDependencies": {
     "@biomejs/biome": "1.7.0",
     "@types/node": "20.12.7",
     "@vitest/coverage-v8": "1.5.0",
+    "typedoc": "0.25.13",
     "typescript": "5.4.5",
     "vite": "5.2.9",
     "vitest": "1.5.0"
