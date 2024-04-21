@@ -67,7 +67,7 @@ export class XhrReporter implements ILogsReporter {
     }
 
     this._signalReport(true);
-    const result = this._reportActionPromise === null ? Promise.resolve() : this._reportActionPromise;
+    const result = this._reportActionPromise ?? Promise.resolve();
 
     await result;
     this._disposed = true;

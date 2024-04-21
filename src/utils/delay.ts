@@ -8,7 +8,6 @@
 export function delay(duration = 1, error?: Error): Promise<void> {
   return new Promise((res, rej) => {
     setTimeout(() => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       error ? rej(error) : res();
     }, duration);
   });

@@ -33,9 +33,8 @@ export class ConsoleReporter implements ILogsReporter {
    * @inheritdoc
    */
   register(message: LogMessage): void {
-    let fn: unknown = null;
+    let fn: unknown;
     if (this._console) {
-      /* eslint-disable @typescript-eslint/unbound-method */
       switch (message.level) {
         case LogLevel.Trace:
           fn = this._console.trace || this._console.log;
@@ -60,15 +59,10 @@ export class ConsoleReporter implements ILogsReporter {
           fn = null;
           break;
       }
-      /* eslint-enable @typescript-eslint/unbound-method */
     }
 
     if (typeof fn === "function") {
-      /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-      /* eslint-disable @typescript-eslint/no-unsafe-call */
       fn.call(this._console, message.message, message);
-      /* eslint-enable @typescript-eslint/no-unsafe-call */
-      /* eslint-enable @typescript-eslint/no-unsafe-member-access */
     }
   }
 
