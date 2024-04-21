@@ -1,9 +1,13 @@
 {
-  "cSpell.words": ["biomejs", "iife", "lcov", "utiliti"],
+  "cSpell.words": ["biomejs", "iife", "lcov", "sonarcloud", "temurin", "utiliti"],
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "always",
     "source.organizeImports.biome": "explicit"
   },
   "editor.defaultFormatter": "biomejs.biome",
-  "editor.formatOnSave": true
+  "editor.formatOnSave": true,
+  "sonarlint.connectedMode.project": {
+    "connectionId": "VS Code",
+    "projectKey": "adaptive-architecture_utiliti-es"
+  }
 }
