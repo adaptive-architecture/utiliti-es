@@ -3,20 +3,9 @@
   "version": "0.0.0",
   "license": "MIT",
   "description": "EcmaScript library with common utilities",
-  "keywords": [
-    "adaptive",
-    "architecture",
-    "pubsub",
-    "logger",
-    "utilities",
-    "common"
-  ],
+  "keywords": ["adaptive", "architecture", "pubsub", "logger", "utilities", "common"],
   "type": "module",
-  "files": [
-    "dist/**",
-    "LICENSE",
-    "README.md"
-  ],
+  "files": ["dist/**", "LICENSE", "README.md"],
   "main": "dist/utiliti-es.umd.cjs",
   "module": "dist/utiliti-es.js",
   "types": "dist/index.d.ts",

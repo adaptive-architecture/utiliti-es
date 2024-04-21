@@ -1,15 +1,9 @@
+import type { SerializableValues } from "../common";
+
 /**
  * The types of message values that can be published.
  */
-export type MessageValue =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | Date
-  | Array<MessageValue>
-  | { [key: string]: MessageValue };
+export type MessageValue = SerializableValues;
 
 /**
  * The type of a message.

@@ -1,10 +1,5 @@
 {
-  "cSpell.words": [
-    "biomejs",
-    "iife",
-    "lcov",
-    "utiliti"
-  ],
+  "cSpell.words": ["biomejs", "iife", "lcov", "utiliti"],
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "always",
     "source.organizeImports.biome": "explicit"
