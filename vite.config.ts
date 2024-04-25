@@ -15,9 +15,13 @@ export default defineConfig({
   },
   test: {
     coverage: {
-      exclude: ["**/ci-cd/**", "**/app/**", "**/docs/**"],
+      exclude: ["**/ci-cd/**", "**/{app,public}/**", "**/docs/**", "**/src/mocks/**"],
       thresholds: {
         autoUpdate: true,
+        branches: 100,
+        functions: 100,
+        lines: 100,
+        statements: 100,
       },
       reporter: ["text", "lcovonly"],
     },
