@@ -13,9 +13,9 @@ export class XhrReporterOptions {
    */
   public verb = "POST";
   /**
-   * The minimum number of items to send in a batch.
+   * The number of items to send in a batch.
    */
-  public minimumBatchSize = 20;
+  public batchSize = 20;
   /**
    * The maximum interval, in milliseconds, to wait for the batch size to be achieved before reporting.
    */
@@ -30,7 +30,7 @@ export class XhrReporterOptions {
 export class XhrReporter implements ILogsReporter {
   private _messageQueue: LogMessage[];
   private _options: XhrReporterOptions;
-  private _reportActionTimeoutRef: ReturnType<typeof setTimeout> | null;
+  private _reportActionTimeoutRef: ReturnType<typeof setTimeout> | undefined;
   private _reportActionPromise: Promise<void> | null;
   private _disposed: boolean;
 
@@ -41,7 +41,7 @@ export class XhrReporter implements ILogsReporter {
 
     this._messageQueue = [];
     this._options = options;
-    this._reportActionTimeoutRef = null;
+    this._reportActionTimeoutRef = undefined;
     this._reportActionPromise = null;
     this._disposed = false;
   }
@@ -55,7 +55,7 @@ export class XhrReporter implements ILogsReporter {
     }
 
     this._messageQueue.push(message);
-    this._signalReport(false);
+    this._scheduleNextProcessAction();
   }
 
   /**
@@ -66,64 +66,47 @@ export class XhrReporter implements ILogsReporter {
       return Promise.resolve();
     }
 
-    this._signalReport(true);
-    const result = this._reportActionPromise ?? Promise.resolve();
-
-    await result;
+    await (this._reportActionPromise ?? this._processMessages());
     this._disposed = true;
-    this._clearPreviousTimeout();
   }
 
-  private _signalReport(triggerNow: boolean): void {
-    if (this._reportActionPromise !== null || this._messageQueue.length === 0) {
-      return; // We are in the process of reporting now.
-    }
-
-    if (triggerNow || this._messageQueue.length >= this._options.minimumBatchSize) {
-      this._reportActionPromise = this._reportCore().then(() => {
-        // Reset promise and signal a new reporting action.
-        this._reportActionPromise = null;
-        this._signalReport(false);
-      });
-      // Once reporting is done a new interval shall be started.
-      this._clearPreviousTimeout();
-    } else {
-      this._scheduleNextReportAction();
-    }
-  }
-
-  private _clearPreviousTimeout(): void {
-    if (!this._reportActionTimeoutRef) {
-      return;
-    }
-
-    clearTimeout(this._reportActionTimeoutRef);
-    this._reportActionTimeoutRef = null;
-  }
-
-  private _scheduleNextReportAction(): void {
+  private _scheduleNextProcessAction(): void {
     if (this._reportActionTimeoutRef) {
-      return;
+      return; // Already scheduled
     }
 
-    this._clearPreviousTimeout();
+    const interval = this._messageQueue.length >= this._options.batchSize ? 0 : this._options.interval;
+
     this._reportActionTimeoutRef = setTimeout(() => {
-      this._clearPreviousTimeout();
-      this._signalReport(true);
-    }, this._options.interval);
+      this._reportActionPromise = this._processMessages().then(() => {
+        const prevRef = this._reportActionTimeoutRef;
+        this._reportActionTimeoutRef = undefined;
+        clearTimeout(prevRef);
+        this._reportActionPromise = null;
+        this._scheduleNextProcessAction();
+      });
+    }, interval);
   }
 
-  private _reportCore(): Promise<void> {
-    const messages = this._messageQueue.splice(0);
+  private async _processMessages(): Promise<void> {
+    let messages: Array<LogMessage>;
+    let success: boolean;
+
+    while (this._messageQueue.length > 0) {
+      messages = this._messageQueue.splice(0, Math.min(this._messageQueue.length, this._options.batchSize));
+      success = await this._sendMessagesBatch(messages);
+      if (!success) {
+        this._messageQueue.unshift(...messages);
+        return;
+      }
+    }
+  }
+
+  private _sendMessagesBatch(messages: Array<LogMessage>): Promise<boolean> {
     return new Promise((resolve) => {
-      const completeFn = (success: boolean) => {
-        if (!success) {
-          this._messageQueue = this._messageQueue.concat(messages);
-        }
-
-        resolve();
+      const failureHandler = () => {
+        resolve(false);
       };
-
       const request = new XMLHttpRequest();
       request.open(this._options.verb, this._options.endpoint);
       request.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
@@ -131,14 +114,10 @@ export class XhrReporter implements ILogsReporter {
         this._options.requestTransform(request);
       }
       request.onload = function () {
-        completeFn(this.status >= 200 && this.status < 300);
+        resolve(this.status >= 200 && this.status < 300);
       };
-      request.onerror = () => {
-        completeFn(false);
-      };
-      request.onabort = () => {
-        completeFn(false);
-      };
+      request.onerror = failureHandler;
+      request.onabort = failureHandler;
       request.send(JSON.stringify(messages));
     });
   }
