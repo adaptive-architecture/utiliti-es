@@ -166,7 +166,7 @@ describe("XhrReporter", () => {
     },
   );
 
-  it.each([400, 0, 1])(
+  it.each([400, 0, -1, -2])(
     "should not consider HTTP '%i' a valid response and retry the messages next time",
     { retry: 5 },
     async (httpResponseCode) => {
@@ -178,7 +178,13 @@ describe("XhrReporter", () => {
         apiCalls++; // Count the number of times the request is made
 
         if (httpResponseCode === -1) {
-          request.timeout = 10;
+          request.timeout = 10; // Simulate timeout
+        }
+
+        if (httpResponseCode === -2) {
+          setTimeout(() => {
+            request.abort(); // Simulate abort
+          }, 10);
         }
       };
 
@@ -202,40 +208,6 @@ describe("XhrReporter", () => {
       await checkExpectedRequests(_handledRequests, _testUuid, _xhrReporterOptions, expectedCalls, -1);
     },
   );
-
-  it("should handle a request abort and retry the messages next time", { retry: 5 }, async () => {
-    let apiCalls = 0;
-    _xhrReporterOptions.endpoint = "/logs?responseCode=-1";
-    _xhrReporterOptions.interval = 50;
-    _xhrReporterOptions.batchSize = 5;
-    _xhrReporterOptions.requestTransform = (request: XMLHttpRequest) => {
-      if (request.responseURL.indexOf("responseCode=-1") > 0) {
-        setTimeout(() => {
-          request.abort();
-        }, 10);
-      }
-      apiCalls++; // Count the number of times the request is made
-    };
-
-    await delay(2 * _xhrReporterOptions.interval);
-    await checkExpectedRequests(_handledRequests, _testUuid, _xhrReporterOptions, 0, -1); // No requests should have been made since we have not added any messages
-
-    await addMessagesToReporter(_xhrReporterOptions, _testUuid, _xhrReporter);
-
-    expect(apiCalls).to.toBeGreaterThanOrEqual(1);
-
-    await checkExpectedRequests(_handledRequests, _testUuid, _xhrReporterOptions, apiCalls, 0);
-    _xhrReporterOptions.endpoint = "/logs?responseCode=200";
-    const expectedCalls = 1 + apiCalls /* failed calls count */;
-
-    await delay(2 * _xhrReporterOptions.interval);
-
-    await checkExpectedRequests(_handledRequests, _testUuid, _xhrReporterOptions, expectedCalls, expectedCalls - 1);
-
-    await delay(2 * _xhrReporterOptions.interval);
-
-    await checkExpectedRequests(_handledRequests, _testUuid, _xhrReporterOptions, expectedCalls, -1);
-  });
 
   it("should wait for reporting to finish before disposing", { retry: 5 }, async () => {
     await checkExpectedRequests(_handledRequests, _testUuid, _xhrReporterOptions, 0, -1);
