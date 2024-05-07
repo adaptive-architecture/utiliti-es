@@ -2,6 +2,7 @@ import { defineConfig } from "vitepress";
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
+  base: "/utiliti-es/",
   title: "@adapt-arch/utiliti-es",
   description: "ECMAScript common utilities library",
   themeConfig: {
