@@ -27,4 +27,6 @@ dist-ssr
 coverage
 
 # Generated docs directory
-docs/.site
+docs/public/api-docs
+docs/.vitepress/dist
+docs/.vitepress/cache
