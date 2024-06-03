@@ -8,11 +8,11 @@ hero:
   tagline: A collection of utilities to reduce your project's boilerplate.
   actions:
     - theme: brand
-      text: Markdown Examples
-      link: /markdown-examples
-    - theme: alt
-      text: API Examples
-      link: /api-examples
+      text: Components
+      link: /components
+    # - theme: alt
+    #   text: API Examples
+    #   link: /api-examples
 
 # features:
 #   - title: Feature A

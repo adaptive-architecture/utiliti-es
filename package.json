@@ -33,7 +33,6 @@
   "author": {
     "name": "Adaptive Architecture"
   },
-  "sideEffects": false,
   "scripts": {
     "dev": "vite",
     "empty-output": "node ./ci-cd/empty-output.js",
