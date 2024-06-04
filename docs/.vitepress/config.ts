@@ -29,5 +29,9 @@ export default defineConfig({
     search: {
       provider: "local",
     },
+    docFooter: {
+      next: false,
+      prev: false,
+    },
   },
 });
