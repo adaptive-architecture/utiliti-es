@@ -5,6 +5,7 @@ export default defineConfig({
   base: "/utiliti-es/",
   title: "@adapt-arch/utiliti-es",
   description: "ECMAScript common utilities library",
+  head: [["link", { rel: "shortcut icon", href: "./favicon.ico" }]],
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
