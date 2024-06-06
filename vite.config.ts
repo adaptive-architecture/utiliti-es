@@ -15,7 +15,7 @@ export default defineConfig({
   },
   test: {
     coverage: {
-      exclude: ["**/ci-cd/**", "**/{app,public}/**", "**/docs/**", "**/src/mocks/**"],
+      exclude: ["**/ci-cd/**", "**/{app,public,test}/**", "**/docs/**"],
       thresholds: {
         autoUpdate: true,
         branches: 100,

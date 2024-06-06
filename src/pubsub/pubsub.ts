@@ -1,26 +1,87 @@
 import type { IPubSubHub, MessageData, MessageHandler } from "./contracts";
 
 /**
+ * The context for a PubSubPlugin action.
+ */
+export type PubSubPluginContext = {
+  /**
+   * The topic of the message.
+   */
+  topic?: string;
+  /**
+   * The message data.
+   */
+  message?: MessageData;
+  /**
+   * The PubSubHub instance.
+   */
+  hub: PubSubHub;
+};
+
+/**
+ * A plugin to extend the PubSubHub.
+ */
+export type PubSubPlugin = {
+  /**
+   * Called right before a message is published.
+   */
+  onPublish?(context: PubSubPluginContext): void;
+};
+
+/**
+ * The options for the PubSubHub.
+ */
+export type PubSubHubOptions = {
+  /**
+   * The plugins to use.
+   */
+  plugins?: Array<PubSubPlugin>;
+};
+
+/**
  * A PubSub implementation.
  */
 export class PubSubHub implements IPubSubHub {
   private _subscriptions: Map<string, Map<string, MessageHandler>> = new Map();
+  private readonly _options: PubSubHubOptions | undefined;
+
+  /**
+   *
+   */
+  constructor(options?: PubSubHubOptions) {
+    this._options = options;
+  }
 
   /** @inheritdoc */
   publish(topic: string, message: MessageData): void {
-    if (!topic) {
+    const context: PubSubPluginContext = {
+      topic,
+      message,
+      hub: this,
+    };
+
+    if (this._options?.plugins) {
+      for (const plugin of this._options.plugins) {
+        if (!plugin.onPublish) {
+          continue;
+        }
+        plugin.onPublish(context);
+      }
+    }
+
+    if (!context.topic) {
       throw new Error("Invalid topic.");
     }
 
-    if (!message) {
+    if (!context.message) {
       throw new Error("Invalid message.");
     }
 
-    const handlers = this._subscriptions.get(topic);
+    const handlers = this._subscriptions.get(context.topic);
     if (handlers) {
       for (const handler of handlers.values()) {
-        const newTopic = structuredClone(topic);
-        const newMessage = structuredClone(message);
+        const newTopic = structuredClone(context.topic);
+        const newMessage = structuredClone(context.message);
         setTimeout(() => handler(newTopic, newMessage), 0);
       }
     }
