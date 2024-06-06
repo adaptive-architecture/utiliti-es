@@ -19,5 +19,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "exclude": ["app/**", "src/**/*.test.ts", "src/mocks/**", "vite.config.ts", "dist", "node_modules"]
+  "exclude": ["app/**", "src/**/*.test.ts", "test/mocks/**", "vite.config.ts", "dist", "node_modules"]
 }

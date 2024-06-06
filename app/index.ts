@@ -11,4 +11,3 @@ pubSubHub.subscribe("appStarted", (_topic, message) => {
 
 await delay(1_000);
 pubSubHub.publish("appStarted", { appName: "My App" });
-

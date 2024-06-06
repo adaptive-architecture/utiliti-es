@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { delay } from "../index";
 import { type MessageData, type MessageHandler, PubSubHub } from "./index";
+import type { PubSubPlugin } from "./pubsub";
 
 describe("pubsub", () => {
   let _hub: PubSubHub;
@@ -71,5 +72,10 @@ describe("pubsub", () => {
   it("should handle invalid call to unsubscribe", () => {
     expect(() => _hub.unsubscribe("")).not.to.throw();
     expect(() => _hub.unsubscribe("some-non-existent-subscription")).not.to.throw();
+  });
+
+  it("should not fail if invalid plugin is provided", () => {
+    _hub = new PubSubHub({ plugins: [{} as unknown as PubSubPlugin] });
+    expect(() => _hub.publish("my-topic", {})).not.to.throw();
   });
 });

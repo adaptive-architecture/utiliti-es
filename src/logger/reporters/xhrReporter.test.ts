@@ -2,7 +2,7 @@
 
 import { type SetupServerApi, setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { getLogReporterHandlers } from "../../mocks/logReporterHandlers";
+import { getLogReporterHandlers } from "../../../test/mocks/logReporterHandlers";
 import { delay } from "../../utils";
 import { LogMessage } from "../contracts";
 import { XhrReporter, XhrReporterOptions } from "./xhrReporter";
