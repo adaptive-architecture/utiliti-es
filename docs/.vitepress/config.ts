@@ -19,7 +19,11 @@ export default defineConfig({
         text: "Components",
         items: [
           { text: "Logger", link: "/components/logger" },
-          { text: "PubSub", link: "/components/pub-sub" },
+          {
+            text: "PubSub",
+            link: "/components/pub-sub",
+            items: [{ text: "Plugins", link: "/components/pub-sub/plugins" }],
+          },
         ],
       },
     ],
