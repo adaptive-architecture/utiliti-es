@@ -11,6 +11,7 @@ describe("pubsub", () => {
   });
 
   afterEach(() => {
+    _hub[Symbol.dispose]();
     _hub = null as unknown as PubSubHub;
   });
 

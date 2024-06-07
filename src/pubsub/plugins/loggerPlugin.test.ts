@@ -7,7 +7,7 @@ import { LoggerPlugin } from "./loggerPlugin";
 
 const logLevel: LogLevel = LogLevel.Debug;
 
-describe("loggerPlugin", () => {
+describe("LoggerPlugin", () => {
   let _hub: PubSubHub;
   let _logger: Logger;
   let _reporter: InMemoryReporter;
@@ -22,6 +22,7 @@ describe("loggerPlugin", () => {
   });
 
   afterEach(async () => {
+    _hub[Symbol.dispose]();
     _hub = null as unknown as PubSubHub;
     await _logger[Symbol.asyncDispose]();
     _logger = null as unknown as Logger;
