@@ -21,6 +21,7 @@ export class BroadcastChannelPlugin implements PubSubPlugin {
   private _options: Options;
   private _channel: BroadcastChannel;
   private _eventListeners: null | ((event: MessageEvent<BroadcastMessage>) => void) = null;
+  private _broadcastEnabled = true;
 
   /**
    * Constructor.
@@ -44,14 +45,19 @@ export class BroadcastChannelPlugin implements PubSubPlugin {
         return;
       }
 
-      hub.publish(message.topic, message.message);
+      try {
+        this._broadcastEnabled = false; // Prevent infinite loop due to broadcast
+        hub.publish(message.topic, message.message);
+      } finally {
+        this._broadcastEnabled = true;
+      }
     };
     this._channel.addEventListener("message", this._eventListeners);
   }
 
   /** @inheritdoc */
   onPublish(context: PubSubPluginContext) {
-    if (!context.topic || !context.message) {
+    if (!this._broadcastEnabled || !context.topic || !context.message) {
       return;
     }
     const message: BroadcastMessage = {

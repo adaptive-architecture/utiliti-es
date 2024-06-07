@@ -3,7 +3,7 @@ import { http, HttpResponse, delay } from "msw";
 // https://mswjs.io/docs/basics/mocking-responses
 export function getLogReporterHandlers(handledRequestsContainer?: Array<Request>) {
   return [
-    http.post("/logs*", async ({ request }) => {
+    http.post("*/logs*", async ({ request }) => {
       if (handledRequestsContainer) {
         handledRequestsContainer.push(request.clone());
       }
