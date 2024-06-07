@@ -12,10 +12,6 @@ export type PubSubPluginContext = {
    * The message data.
    */
   message?: MessageData;
-  /**
-   * The PubSubHub instance.
-   */
-  hub: PubSubHub;
 };
 
 /**
@@ -23,9 +19,19 @@ export type PubSubPluginContext = {
  */
 export type PubSubPlugin = {
   /**
+   * Called when the plugin is initialized.
+   */
+  init?(hub: IPubSubHub): void;
+
+  /**
    * Called right before a message is published.
    */
   onPublish?(context: PubSubPluginContext): void;
+
+  /**
+   * Dispose of the plugin.
+   */
+  [Symbol.dispose]?(): void;
 };
 
 /**
@@ -50,6 +56,15 @@ export class PubSubHub implements IPubSubHub {
    */
   constructor(options?: PubSubHubOptions) {
     this._options = options;
+
+    if (this._options?.plugins) {
+      for (const plugin of this._options.plugins) {
+        if (!plugin.init) {
+          continue;
+        }
+        plugin.init(this);
+      }
+    }
   }
 
   /** @inheritdoc */
@@ -57,7 +72,6 @@ export class PubSubHub implements IPubSubHub {
     const context: PubSubPluginContext = {
       topic,
       message,
-      hub: this,
     };
 
     if (this._options?.plugins) {
@@ -119,5 +133,21 @@ export class PubSubHub implements IPubSubHub {
         return;
       }
     }
+  }
+
+  [Symbol.dispose]() {
+    this._subscriptions.clear();
+
+    if (this._options?.plugins) {
+      for (const plugin of this._options.plugins) {
+        const disposeFn = plugin[Symbol.dispose];
+        if (!disposeFn) {
+          continue;
+        }
+        disposeFn.call(plugin);
+      }
+    }
+
+    return Promise.resolve();
   }
 }
