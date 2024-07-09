@@ -38,7 +38,7 @@ export default defineConfig({
   },
   test: {
     coverage: {
-      exclude: ["**/ci-cd/**", "**/{app,public,test}/**", "**/docs/**"],
+      exclude: ["**/ci-cd/**", "**/{app,public,test,docs,dist}/**", "**/**.test.ts", "vite.config.ts"],
       thresholds: {
         autoUpdate: true,
         branches: 100,
