@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { delay } from "../index";
+import { nextTicks } from "../index";
 import { InMemoryReporter, LogLevel, LogMessage, Logger, LoggerOptions, ValuesEnricher } from "./index";
 
 describe("Logger", () => {
@@ -52,7 +52,7 @@ describe("Logger", () => {
     logger.logMessage(message);
     logger.logMessage(new LogMessage());
 
-    await delay(1);
+    await nextTicks();
 
     expect(rep.messages.length).to.equal(1);
     expect(rep.messages[0].level).to.equal(LogLevel.Critical);
@@ -73,7 +73,7 @@ describe("Logger", () => {
       expect(rep.messages.length).to.equal(0);
       logger.log(LogLevel.Error, "some message");
 
-      await delay(1);
+      await nextTicks();
 
       expect(rep.messages.length).to.equal(1);
       expect(rep.messages[0].level).to.equal(LogLevel.Error);
@@ -85,7 +85,7 @@ describe("Logger", () => {
       const err = new Error("error message");
       logger.log(LogLevel.Error, "some message", err);
 
-      await delay(1);
+      await nextTicks();
 
       expect(rep.messages.length).to.equal(1);
       expect(rep.messages[0].level).to.equal(LogLevel.Error);
@@ -107,7 +107,7 @@ describe("Logger", () => {
       expect(rep.messages.length).to.equal(0);
       logger.trace("some message");
 
-      await delay(1);
+      await nextTicks();
 
       expect(rep.messages.length).to.equal(1);
       expect(rep.messages[0].level).to.equal(LogLevel.Trace);
@@ -118,7 +118,7 @@ describe("Logger", () => {
       expect(rep.messages.length).to.equal(0);
       logger.debug("some message");
 
-      await delay(1);
+      await nextTicks();
 
       expect(rep.messages.length).to.equal(1);
       expect(rep.messages[0].level).to.equal(LogLevel.Debug);
@@ -129,7 +129,7 @@ describe("Logger", () => {
       expect(rep.messages.length).to.equal(0);
       logger.info("some message");
 
-      await delay(1);
+      await nextTicks();
 
       expect(rep.messages.length).to.equal(1);
       expect(rep.messages[0].level).to.equal(LogLevel.Information);
@@ -140,7 +140,7 @@ describe("Logger", () => {
       expect(rep.messages.length).to.equal(0);
       logger.warn("some message");
 
-      await delay(1);
+      await nextTicks();
 
       expect(rep.messages.length).to.equal(1);
       expect(rep.messages[0].level).to.equal(LogLevel.Warning);
@@ -151,7 +151,7 @@ describe("Logger", () => {
       expect(rep.messages.length).to.equal(0);
       logger.error("some message");
 
-      await delay(1);
+      await nextTicks();
 
       expect(rep.messages.length).to.equal(1);
       expect(rep.messages[0].level).to.equal(LogLevel.Error);
@@ -162,7 +162,7 @@ describe("Logger", () => {
       expect(rep.messages.length).to.equal(0);
       logger.crit("some message");
 
-      await delay(1);
+      await nextTicks();
 
       expect(rep.messages.length).to.equal(1);
       expect(rep.messages[0].level).to.equal(LogLevel.Critical);

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { delay } from "../index";
+import { nextTicks } from "../index";
 import { type MessageData, type MessageHandler, PubSubHub } from "./index";
 import type { PubSubPlugin } from "./pubsub";
 
@@ -32,7 +32,7 @@ describe("pubsub", () => {
     _hub.publish("test", publishedMessage);
     expect(receivedMessage).toBe(undefined); // The subscriber hasn't been called yet. Processing is async.
 
-    await delay(10);
+    await nextTicks(2);
 
     expect(receivedMessage)
       .to.eql(publishedMessage) // The received message should be the same as the published message.
@@ -50,13 +50,13 @@ describe("pubsub", () => {
     }
 
     _hub.publish("test", {});
-    await delay(10);
+    await nextTicks(2);
     expect(called).to.equal(1);
 
     _hub.unsubscribe(subscriberId);
 
     _hub.publish("test", {});
-    await delay(10);
+    await nextTicks(2);
     expect(called).to.equal(1);
   });
 
@@ -78,5 +78,26 @@ describe("pubsub", () => {
   it("should not fail if invalid plugin is provided", () => {
     _hub = new PubSubHub({ plugins: [{} as unknown as PubSubPlugin] });
     expect(() => _hub.publish("my-topic", {})).not.to.throw();
+  });
+
+  it("should trigger handler after dispose", async () => {
+    let called = 0;
+    const subscriberId = _hub.subscribe("test", () => {
+      called++;
+    });
+
+    if (!subscriberId) {
+      expect.fail("SubscriberId is null.");
+    }
+
+    _hub.publish("test", {});
+    await nextTicks(2);
+    expect(called).to.equal(1);
+
+    _hub.publish("test", {});
+    _hub[Symbol.dispose]();
+    await nextTicks(2);
+
+    expect(called).to.equal(1);
   });
 });
