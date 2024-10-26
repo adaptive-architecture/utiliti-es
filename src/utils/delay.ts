@@ -12,3 +12,17 @@ export function delay(duration = 1, error?: Error): Promise<void> {
     }, duration);
   });
 }
+
+/**
+ * Await the next {count} ticks.
+ *
+ * @param {number} count The number of ticks to wait for.
+ * @returns {Promise<void>} A promise that resolves after a certain number of ticks.
+ */
+export function nextTicks(count = 1): Promise<void> {
+  if (count <= 0) {
+    return Promise.resolve();
+  }
+
+  return delay(0).then(() => nextTicks(count - 1));
+}

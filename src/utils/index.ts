@@ -1,1 +1,1 @@
-export { delay } from "./delay";
+export * from "./delay";

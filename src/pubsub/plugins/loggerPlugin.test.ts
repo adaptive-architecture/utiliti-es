@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createTestLogger } from "../../../test/testLoggerFactory";
 import { type InMemoryReporter, LogLevel, type Logger } from "../../logger";
-import { delay } from "../../utils";
+import { nextTicks } from "../../utils";
 import { type MessageData, PubSubHub } from "../index";
 import { LoggerPlugin } from "./loggerPlugin";
 
@@ -38,7 +38,7 @@ describe("LoggerPlugin", () => {
     };
 
     _hub.publish("test", publishedMessage);
-    await delay(10);
+    await nextTicks(2);
 
     const loggedItem = _reporter.messages[0];
     expect(loggedItem.message).to.eql("Publishing message to topic: test");
@@ -57,7 +57,7 @@ describe("LoggerPlugin", () => {
       expect(e).to.be.an.instanceOf(Error);
     }
 
-    await delay(10);
+    await nextTicks(2);
 
     const loggedItem = _reporter.messages[0];
     expect(loggedItem.message).to.eql("Publishing message to topic: undefined");

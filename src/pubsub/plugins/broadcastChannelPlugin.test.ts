@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { BroadcastChannel } from "node:worker_threads";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { delay } from "../../utils";
+import { nextTicks } from "../../utils";
 import { type MessageData, PubSubHub } from "../index";
 import { BroadcastChannelPlugin } from "./broadcastChannelPlugin";
 
@@ -32,7 +32,7 @@ describe("BroadcastChannelPlugin", () => {
       receivedMessage = m;
     });
     _hub.publish("test", publishedMessage);
-    await delay(10);
+    await nextTicks(2);
 
     expect(receivedMessage).to.eql(publishedMessage);
   });
@@ -60,7 +60,7 @@ describe("BroadcastChannelPlugin", () => {
     };
 
     _hub.publish("test", publishedMessage);
-    await delay(10);
+    await nextTicks(2);
     chanel.close();
 
     expect(receivedMessage).to.eql({ topic: "test", message: publishedMessage });
@@ -90,7 +90,7 @@ describe("BroadcastChannelPlugin", () => {
     expect(chanelAMessages.length).to.eql(0);
     expect(chanelBMessages.length).to.eql(0);
 
-    await delay(50);
+    await nextTicks(10);
 
     expect(hubMessages.length).to.eql(
       1,
@@ -98,7 +98,7 @@ describe("BroadcastChannelPlugin", () => {
     );
     expect(hubMessages[0]).to.eql(publishedMessage);
 
-    await delay(50);
+    await nextTicks(10);
     chanelA.close();
     chanelB.close();
 
@@ -120,7 +120,7 @@ describe("BroadcastChannelPlugin", () => {
     });
     chanel.postMessage({ topic: undefined, message: publishedMessage });
     chanel.postMessage({ topic: "test", message: undefined });
-    await delay(50);
+    await nextTicks(10);
     chanel.close();
 
     expect(receivedMessages.length).to.eql(0);

@@ -3,7 +3,7 @@
 import { type SetupServerApi, setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { getLogReporterHandlers } from "../../../test/mocks/logReporterHandlers";
-import { delay } from "../../utils";
+import { delay, nextTicks } from "../../utils";
 import { LogMessage } from "../contracts";
 import { XhrReporter, XhrReporterOptions } from "./xhrReporter";
 
@@ -122,9 +122,9 @@ describe("XhrReporter", () => {
   it("should not fail if calling dispose multiple times", async () => {
     try {
       await _xhrReporter[Symbol.asyncDispose]();
-      await delay(1);
+      await nextTicks();
       await _xhrReporter[Symbol.asyncDispose]();
-      await delay(1);
+      await nextTicks();
 
       expect(true).to.eq(true);
     } catch (error) {
@@ -137,7 +137,7 @@ describe("XhrReporter", () => {
     expect(testRequests.length).to.equal(0);
 
     await _xhrReporter[Symbol.asyncDispose]();
-    await delay(1);
+    await nextTicks();
     _xhrReporter.register(newLogMessage(_testUuid));
     _xhrReporter.register(newLogMessage(_testUuid));
     _xhrReporter.register(newLogMessage(_testUuid));
