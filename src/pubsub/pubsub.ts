@@ -44,11 +44,27 @@ export type PubSubHubOptions = {
   plugins?: Array<PubSubPlugin>;
 };
 
+type TimeoutRef = {
+  ref?: ReturnType<typeof setTimeout>;
+};
+
+type SubscriptionTracker = {
+  handler: MessageHandler;
+  timeouts: Array<TimeoutRef>;
+};
+
+const clearTimeoutRef = (tracker: SubscriptionTracker, timeout: TimeoutRef) => {
+  clearTimeout(timeout.ref);
+  timeout.ref = undefined;
+  const ix = tracker.timeouts.indexOf(timeout);
+  tracker.timeouts.splice(ix, 1);
+};
+
 /**
  * A PubSub implementation.
  */
 export class PubSubHub implements IPubSubHub {
-  private _subscriptions: Map<string, Map<string, MessageHandler>> = new Map();
+  private readonly _subscriptions: Map<string, Map<string, SubscriptionTracker>> = new Map();
   private readonly _options: PubSubHubOptions | undefined;
 
   /**
@@ -91,12 +107,22 @@ export class PubSubHub implements IPubSubHub {
       throw new Error("Invalid message.");
     }
 
-    const handlers = this._subscriptions.get(context.topic);
-    if (handlers) {
-      for (const handler of handlers.values()) {
-        const newTopic = structuredClone(context.topic);
-        const newMessage = structuredClone(context.message);
-        setTimeout(() => handler(newTopic, newMessage), 0);
+    const subTrackers = this._subscriptions.get(context.topic);
+    if (subTrackers) {
+      for (const tracker of subTrackers.values()) {
+        const timeout: TimeoutRef = {};
+        tracker.timeouts.push(timeout);
+        timeout.ref = setTimeout(
+          (ctx, timeout, topic, message) => {
+            ctx.handler(topic, message);
+            clearTimeoutRef(tracker, timeout);
+          },
+          0,
+          tracker,
+          timeout,
+          structuredClone(context.topic),
+          structuredClone(context.message),
+        );
       }
     }
   }
@@ -111,14 +137,14 @@ export class PubSubHub implements IPubSubHub {
       throw new Error("Invalid handler.");
     }
 
-    let handlers = this._subscriptions.get(topic);
-    if (!handlers) {
-      handlers = new Map();
-      this._subscriptions.set(structuredClone(topic), handlers);
+    let subTrackers = this._subscriptions.get(topic);
+    if (!subTrackers) {
+      subTrackers = new Map();
+      this._subscriptions.set(structuredClone(topic), subTrackers);
     }
 
     const subscriptionId = `sub-${Date.now()}`;
-    handlers.set(subscriptionId, handler);
+    subTrackers.set(subscriptionId, { handler: handler, timeouts: [] });
     return subscriptionId;
   }
 
@@ -128,14 +154,30 @@ export class PubSubHub implements IPubSubHub {
       return;
     }
 
-    for (const handlers of this._subscriptions.values()) {
-      if (handlers.delete(subscriptionId)) {
+    for (const subTrackers of this._subscriptions.values()) {
+      for (const tracker of subTrackers.values()) {
+        while (true) {
+          const timeout = tracker.timeouts.pop();
+          if (!timeout) {
+            break;
+          }
+          clearTimeoutRef(tracker, timeout);
+        }
+      }
+
+      if (subTrackers.delete(subscriptionId)) {
         return;
       }
     }
   }
 
   [Symbol.dispose]() {
+    for (const subTrackers of this._subscriptions.values()) {
+      for (const trackerId of subTrackers.keys()) {
+        this.unsubscribe(trackerId);
+      }
+    }
+
     this._subscriptions.clear();
 
     if (this._options?.plugins) {
