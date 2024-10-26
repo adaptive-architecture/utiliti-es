@@ -5,7 +5,7 @@ import type { ILogsReporter, LogMessage } from "../contracts";
  * DO NOT user this in production. This is meant for unit tests.
  */
 export class InMemoryReporter implements ILogsReporter {
-  private _messages: LogMessage[] = [];
+  private readonly _messages: LogMessage[] = [];
 
   public get messages(): LogMessage[] {
     return this._messages.slice();

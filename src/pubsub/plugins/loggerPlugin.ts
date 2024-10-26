@@ -5,8 +5,8 @@ import type { PubSubPlugin, PubSubPluginContext } from "../pubsub";
  * A plugin to log messages.
  */
 export class LoggerPlugin implements PubSubPlugin {
-  private _logger: Logger;
-  private _logLevel: LogLevel;
+  private readonly _logger: Logger;
+  private readonly _logLevel: LogLevel;
 
   /**
    * Constructor.

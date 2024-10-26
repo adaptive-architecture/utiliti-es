@@ -18,7 +18,7 @@ export interface IReporterConsole {
  * Depending on the browser settings some messages might noy be output to the console.
  */
 export class ConsoleReporter implements ILogsReporter {
-  private _console: IReporterConsole;
+  private readonly _console: IReporterConsole;
 
   /**
    * Constructor.

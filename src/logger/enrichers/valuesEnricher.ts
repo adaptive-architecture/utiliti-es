@@ -1,8 +1,8 @@
 import type { ExtraParams, ILogMessageEnricher, LogMessage } from "../contracts";
 
 export class ValuesEnricher implements ILogMessageEnricher {
-  private _values: ExtraParams;
-  private _overrideExisting: boolean;
+  private readonly _values: ExtraParams;
+  private readonly _overrideExisting: boolean;
 
   /**
    * Constructor.

@@ -28,8 +28,8 @@ export class XhrReporterOptions {
 }
 
 export class XhrReporter implements ILogsReporter {
-  private _messageQueue: LogMessage[];
-  private _options: XhrReporterOptions;
+  private readonly _messageQueue: LogMessage[];
+  private readonly _options: XhrReporterOptions;
   private _reportActionTimeoutRef: ReturnType<typeof setTimeout> | undefined;
   private _reportActionPromise: Promise<void> | null;
   private _disposed: boolean;

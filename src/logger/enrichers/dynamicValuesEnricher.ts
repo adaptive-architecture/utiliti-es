@@ -6,8 +6,8 @@ import type { ExtraParams, ILogMessageEnricher, LogMessage } from "../contracts"
 export type DynamicValuesFunction = () => ExtraParams;
 
 export class DynamicValuesEnricher implements ILogMessageEnricher {
-  private _valuesFn: DynamicValuesFunction;
-  private _overrideExisting: boolean;
+  private readonly _valuesFn: DynamicValuesFunction;
+  private readonly _overrideExisting: boolean;
 
   /**
    * Constructor.

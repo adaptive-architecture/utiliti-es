@@ -18,8 +18,8 @@ export type Options = {
  * A plugin to log messages.
  */
 export class BroadcastChannelPlugin implements PubSubPlugin {
-  private _options: Options;
-  private _channel: BroadcastChannel;
+  private readonly _options: Options;
+  private readonly _channel: BroadcastChannel;
   private _eventListeners: null | ((event: MessageEvent<BroadcastMessage>) => void) = null;
   private _broadcastEnabled = true;
 

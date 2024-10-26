@@ -4,7 +4,7 @@ import type { ILogsReporter, LogMessage } from "../contracts";
  * An implementations that can report to multiple implementations of `ILogsReporter`.
  */
 export class MultipleReporter implements ILogsReporter {
-  private _reporters: ILogsReporter[];
+  private readonly _reporters: ILogsReporter[];
 
   constructor(reporters: ILogsReporter[]) {
     this._reporters = reporters || [];

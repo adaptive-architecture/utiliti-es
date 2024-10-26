@@ -5,7 +5,7 @@ import type { LoggerOptions } from "./loggerOptions";
  * Logging service.
  */
 export class Logger implements AsyncDisposable {
-  private _options: LoggerOptions;
+  private readonly _options: LoggerOptions;
 
   /**
    * Constructor.
