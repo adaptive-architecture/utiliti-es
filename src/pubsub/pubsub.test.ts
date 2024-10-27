@@ -52,11 +52,35 @@ describe("pubsub", () => {
     _hub.publish("test", {});
     await nextTicks(2);
     expect(called).to.equal(1);
+    assertNoHangingTimers(_hub);
 
     _hub.unsubscribe(subscriberId);
 
     _hub.publish("test", {});
     await nextTicks(2);
+    expect(called).to.equal(1);
+  });
+
+  it("should trigger handler after dispose", async () => {
+    let called = 0;
+    const subscriberId = _hub.subscribe("test", () => {
+      called++;
+    });
+
+    if (!subscriberId) {
+      expect.fail("SubscriberId is null.");
+    }
+
+    _hub.publish("test", {});
+    await nextTicks(2);
+    expect(called).to.equal(1);
+
+    _hub.publish("test", {});
+    _hub[Symbol.dispose]();
+    await nextTicks(2);
+
+    assertNoHangingTimers(_hub);
+
     expect(called).to.equal(1);
   });
 
@@ -79,25 +103,19 @@ describe("pubsub", () => {
     _hub = new PubSubHub({ plugins: [{} as unknown as PubSubPlugin] });
     expect(() => _hub.publish("my-topic", {})).not.to.throw();
   });
-
-  it("should trigger handler after dispose", async () => {
-    let called = 0;
-    const subscriberId = _hub.subscribe("test", () => {
-      called++;
-    });
-
-    if (!subscriberId) {
-      expect.fail("SubscriberId is null.");
-    }
-
-    _hub.publish("test", {});
-    await nextTicks(2);
-    expect(called).to.equal(1);
-
-    _hub.publish("test", {});
-    _hub[Symbol.dispose]();
-    await nextTicks(2);
-
-    expect(called).to.equal(1);
-  });
 });
+
+function assertNoHangingTimers(hub: PubSubHub) {
+  // biome-ignore lint/suspicious/noExplicitAny: Looking at the internals of the hub for testing purposes.
+  const subs = (hub as any)._subscriptions;
+
+  for (const [topic, topicSubs] of subs) {
+    for (const [, sub] of topicSubs) {
+      for (const timeout of sub.timeouts) {
+        if (timeout.ref) {
+          expect.fail(`Hanging timer for topic '${topic}'.`);
+        }
+      }
+    }
+  }
+}
