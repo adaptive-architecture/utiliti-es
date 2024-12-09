@@ -50,10 +50,10 @@
     "@types/node": "22.10.1",
     "@vitest/coverage-v8": "2.1.8",
     "jsdom": "25.0.1",
-    "msw": "2.6.6",
-    "typedoc": "0.27.2",
+    "msw": "2.6.8",
+    "typedoc": "0.27.4",
     "typescript": "5.7.2",
-    "vite": "6.0.2",
+    "vite": "6.0.3",
     "vitepress": "1.5.0",
     "vitest": "2.1.8"
   },
