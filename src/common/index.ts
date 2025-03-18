@@ -1,1 +1,1 @@
-export { type SerializableValues } from "./contracts";
+export type { SerializableValues } from "./contracts";

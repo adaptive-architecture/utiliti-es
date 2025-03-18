@@ -96,3 +96,56 @@ export interface ILogMessageEnricher {
    */
   enrich(message: LogMessage): void;
 }
+
+/**
+ * Logging service.
+ */
+/**
+ * Interface for logging operations.
+ */
+export interface ILogger extends AsyncDisposable {
+  /**
+   * Indicates if the specified level will be logged.
+   */
+  isEnabled(level: LogLevel): boolean;
+
+  /**
+   * Log trace.
+   */
+  trace(msg: string): void;
+
+  /**
+   * Log debug.
+   */
+  debug(msg: string): void;
+
+  /**
+   * Log information.
+   */
+  info(msg: string): void;
+
+  /**
+   * Log warning.
+   */
+  warn(msg: string): void;
+
+  /**
+   * Log error.
+   */
+  error(msg: string): void;
+
+  /**
+   * Log critical.
+   */
+  crit(msg: string): void;
+
+  /**
+   * Log an event.
+   */
+  log(level: LogLevel, message: string, e?: Error, params?: ExtraParams): void;
+
+  /**
+   * Log a message.
+   */
+  logMessage(message: LogMessage): void;
+}
