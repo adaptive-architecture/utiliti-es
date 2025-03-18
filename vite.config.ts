@@ -1,13 +1,15 @@
 import { readdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 
-/// <reference types="vitest" />
-import { type Plugin, type ResolvedConfig, defineConfig } from "vite";
+import type { Plugin, ResolvedConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
 function clearPublicFiles(): Plugin {
   let _config: ResolvedConfig;
   return {
     name: "clear-public-files",
+    enforce: "post",
+    apply: "build",
     configResolved(resolvedConfig) {
       _config = resolvedConfig;
     },
