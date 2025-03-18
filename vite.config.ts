@@ -5,16 +5,18 @@ import { resolve } from "node:path";
 import { type Plugin, type ResolvedConfig, defineConfig } from "vite";
 
 function clearPublicFiles(): Plugin {
-  let config: ResolvedConfig;
+  let _config: ResolvedConfig;
   return {
     name: "clear-public-files",
-    configResolved(_config) {
-      config = _config;
+    configResolved(resolvedConfig) {
+      _config = resolvedConfig;
     },
     buildEnd() {
-      readdir(resolve(__dirname, config.publicDir)).then((files) => {
+      const dir = resolve(__dirname, _config.publicDir);
+      console.log("Clearing public files in", dir);
+      readdir(dir).then((files) => {
         for (const file of files) {
-          rm(resolve(`${config.build.outDir}/${file}`), { recursive: true });
+          rm(resolve(`${_config.build.outDir}/${file}`), { recursive: true });
         }
       });
     },
@@ -32,10 +34,8 @@ export default defineConfig({
     },
     outDir: "./dist/bundle",
     minify: true,
-    rollupOptions: {
-      plugins: [clearPublicFiles()],
-    },
   },
+  plugins: [clearPublicFiles()],
   test: {
     coverage: {
       exclude: ["**/ci-cd/**", "**/{app,public,test,docs,dist}/**", "**/**.test.ts", "vite.config.ts"],

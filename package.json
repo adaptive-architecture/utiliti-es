@@ -34,6 +34,7 @@
     "name": "Adaptive Architecture"
   },
   "scripts": {
+    "clean": "rm -rf ./node_modules/ && rm -rf ./package-lock.json",
     "dev": "vite",
     "empty-output": "node ./ci-cd/empty-output.js",
     "build": "tsc && vite build",
