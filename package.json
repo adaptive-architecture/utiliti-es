@@ -12,15 +12,15 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/bundle/utiliti-es.js",
-      "require": "./dist/bundle/utiliti-es.cjs",
       "node": {
         "import": {
           "production": "./dist/bundle/utiliti-es.js",
           "development": "./dist/index.js",
           "default": "./dist/index.js"
         }
-      }
+      },
+      "require": "./dist/bundle/utiliti-es.cjs",
+      "import": "./dist/bundle/utiliti-es.js"
     }
   },
   "repository": {
@@ -39,7 +39,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "prelint": "node ./ci-cd/empty-output.js",
-    "lint": "npx @biomejs/biome check --apply ./",
+    "lint": "npx @biomejs/biome check --write ./",
     "test": "vitest run --coverage",
     "docs:dev": "typedoc && vitepress dev docs",
     "docs:build": "typedoc && vitepress build docs",

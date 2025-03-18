@@ -1,11 +1,11 @@
-import { LogLevel, type Logger } from "../../logger";
+import { type ILogger, LogLevel } from "../../logger";
 import type { PubSubPlugin, PubSubPluginContext } from "../pubsub";
 
 /**
  * A plugin to log messages.
  */
 export class LoggerPlugin implements PubSubPlugin {
-  private readonly _logger: Logger;
+  private readonly _logger: ILogger;
   private readonly _logLevel: LogLevel;
 
   /**
@@ -14,7 +14,7 @@ export class LoggerPlugin implements PubSubPlugin {
    * @param {Logger} logger The logger.
    * @param {LogLevel} logLevel The log level.
    */
-  constructor(logger: Logger, logLevel: LogLevel = LogLevel.Information) {
+  constructor(logger: ILogger, logLevel: LogLevel = LogLevel.Information) {
     this._logger = logger;
     this._logLevel = logLevel;
   }

@@ -1,10 +1,10 @@
-import { type ExtraParams, LogLevel, LogMessage } from "./contracts";
+import { type ExtraParams, type ILogger, LogLevel, LogMessage } from "./contracts";
 import type { LoggerOptions } from "./loggerOptions";
 
 /**
  * Logging service.
  */
-export class Logger implements AsyncDisposable {
+export class Logger implements ILogger {
   private readonly _options: LoggerOptions;
 
   /**
@@ -37,17 +37,13 @@ export class Logger implements AsyncDisposable {
   }
 
   /**
-   * Indicates if the specified level will be logged.
-   *
-   * @param {LogLevel} level The log level.
+   * @inheritdoc
    */
   public isEnabled(level: LogLevel): boolean {
     return level !== LogLevel.None && level >= this._options.minimumLevel;
   }
   /**
-   * Log trace.
-   *
-   * @param msg The message to log.
+   * @inheritdoc
    */
   public trace(msg: string): void {
     const message = new LogMessage();
@@ -56,9 +52,7 @@ export class Logger implements AsyncDisposable {
     this.logMessage(message);
   }
   /**
-   * Log debug.
-   *
-   * @param msg The message to log.
+   * @inheritdoc
    */
   public debug(msg: string): void {
     const message = new LogMessage();
@@ -67,9 +61,7 @@ export class Logger implements AsyncDisposable {
     this.logMessage(message);
   }
   /**
-   * Log information.
-   *
-   * @param msg The message to log.
+   * @inheritdoc
    */
   public info(msg: string): void {
     const message = new LogMessage();
@@ -78,9 +70,7 @@ export class Logger implements AsyncDisposable {
     this.logMessage(message);
   }
   /**
-   * Log warning.
-   *
-   * @param msg The message to log.
+   * @inheritdoc
    */
   public warn(msg: string): void {
     const message = new LogMessage();
@@ -89,9 +79,7 @@ export class Logger implements AsyncDisposable {
     this.logMessage(message);
   }
   /**
-   * Log error.
-   *
-   * @param msg The message to log.
+   * @inheritdoc
    */
   public error(msg: string): void {
     const message = new LogMessage();
@@ -100,9 +88,7 @@ export class Logger implements AsyncDisposable {
     this.logMessage(message);
   }
   /**
-   * Log error.
-   *
-   * @param msg The message to log.
+   * @inheritdoc
    */
   public crit(msg: string): void {
     const message = new LogMessage();
@@ -112,12 +98,7 @@ export class Logger implements AsyncDisposable {
   }
 
   /**
-   * Log an event.
-   *
-   * @param {LogLevel} level The level to log the event.
-   * @param {String} message Custom message.
-   * @param {Error} e The error associated with the event.
-   * @param {ExtraParams} params Extra parameters.
+   * @inheritdoc
    */
   public log(level: LogLevel, message: string, e?: Error, params?: ExtraParams): void {
     const msg = new LogMessage();
@@ -131,9 +112,7 @@ export class Logger implements AsyncDisposable {
   }
 
   /**
-   * Log a message.
-   *
-   * @param {LogMessage} message The message to log.
+   * @inheritdoc
    */
   public logMessage(message: LogMessage): void {
     if (!this.isEnabled(message.level)) return;
