@@ -1,5 +1,5 @@
 {
-  "cSpell.words": ["biomejs", "iife", "lcov", "prelint", "sonarcloud", "temurin", "utiliti", "vitepress"],
+  "cSpell.words": ["biomejs", "iife", "lcov", "prelint", "sonarcloud", "sonarqube", "temurin", "utiliti", "vitepress"],
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "always",
     "source.organizeImports.biome": "explicit"
