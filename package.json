@@ -12,13 +12,6 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "node": {
-        "import": {
-          "production": "./dist/bundle/utiliti-es.js",
-          "development": "./dist/index.js",
-          "default": "./dist/index.js"
-        }
-      },
       "require": "./dist/bundle/utiliti-es.cjs",
       "import": "./dist/bundle/utiliti-es.js"
     }
