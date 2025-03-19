@@ -1,4 +1,4 @@
-export * from "./pubsub/index";
-export * from "./utils/index";
+export * from "./pubsub";
+export * from "./utils";
 export * from "./common";
 export * from "./logger";

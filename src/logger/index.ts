@@ -1,5 +1,5 @@
-export * from "./enrichers/index";
-export * from "./reporters/index";
+export * from "./enrichers";
+export * from "./reporters/";
 export * from "./contracts";
 export * from "./logger";
 export * from "./loggerOptions";
