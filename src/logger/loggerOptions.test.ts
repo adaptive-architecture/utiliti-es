@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LogLevel, LoggerOptions } from "./index";
+import { LoggerOptions, LogLevel } from "./index";
 
 describe("LoggerOptions", () => {
   it("should have default values", () => {

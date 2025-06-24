@@ -1,4 +1,4 @@
-import { http, HttpResponse, delay } from "msw";
+import { delay, HttpResponse, http } from "msw";
 
 // https://mswjs.io/docs/basics/mocking-responses
 export function getLogReporterHandlers(handledRequestsContainer?: Array<Request>) {

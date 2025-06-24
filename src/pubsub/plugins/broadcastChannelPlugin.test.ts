@@ -27,7 +27,7 @@ describe("BroadcastChannelPlugin", () => {
   it("should not affect regular pub/sub functionality", async () => {
     const publishedMessage: MessageData = { id: "test", data: null };
 
-    let receivedMessage: MessageData | undefined = undefined;
+    let receivedMessage: MessageData | undefined;
     _hub.subscribe("test", (_t, m) => {
       receivedMessage = m;
     });
@@ -53,7 +53,7 @@ describe("BroadcastChannelPlugin", () => {
   it("should send a message to the broadcast channel", async () => {
     const publishedMessage: MessageData = { id: "test", data: null };
 
-    let receivedMessage: unknown = undefined;
+    let receivedMessage: unknown;
     const chanel = new BroadcastChannel(_channelName);
     chanel.onmessage = (e) => {
       receivedMessage = (e as MessageEvent<unknown>).data;

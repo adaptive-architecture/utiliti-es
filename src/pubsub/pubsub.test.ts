@@ -24,7 +24,7 @@ describe("pubsub", () => {
       },
     };
 
-    let receivedMessage: MessageData | undefined = undefined;
+    let receivedMessage: MessageData | undefined;
     _hub.subscribe("test", (_t, m) => {
       receivedMessage = m;
     });

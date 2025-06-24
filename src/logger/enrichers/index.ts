@@ -1,2 +1,2 @@
-export * from "./valuesEnricher";
 export * from "./dynamicValuesEnricher";
+export * from "./valuesEnricher";

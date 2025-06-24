@@ -3,9 +3,9 @@ import { LogLevel, LogMessage } from "./index";
 
 describe("LogMessage", () => {
   it("should have the timestamp", () => {
-    const t0 = new Date().getTime();
+    const t0 = Date.now();
     const lm = new LogMessage();
-    const t1 = new Date().getTime();
+    const t1 = Date.now();
 
     expect(lm.timestamp >= t0).to.equal(true);
     expect(lm.timestamp <= t1).to.equal(true);

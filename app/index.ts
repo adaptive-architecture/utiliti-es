@@ -1,5 +1,5 @@
 import { setupWorker } from "msw/browser";
-import { BroadcastChannelPlugin, PubSubHub, delay } from "../src/index.ts";
+import { BroadcastChannelPlugin, delay, PubSubHub } from "../src/index.ts";
 import { getLogReporterHandlers } from "../test/mocks/logReporterHandlers.ts";
 import { logger } from "./logger.ts";
 

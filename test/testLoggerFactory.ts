@@ -1,4 +1,4 @@
-import { InMemoryReporter, LogLevel, Logger } from "../src";
+import { InMemoryReporter, Logger, LogLevel } from "../src";
 
 export function createTestLogger(): { logger: Logger; reporter: InMemoryReporter } {
   const reporter = new InMemoryReporter();
