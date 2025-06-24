@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { nextTicks } from "../index";
-import { InMemoryReporter, LogLevel, LogMessage, Logger, LoggerOptions, ValuesEnricher } from "./index";
+import { InMemoryReporter, Logger, LoggerOptions, LogLevel, LogMessage, ValuesEnricher } from "./index";
 
 describe("Logger", () => {
   let opt: LoggerOptions;

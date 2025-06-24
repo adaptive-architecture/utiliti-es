@@ -46,7 +46,7 @@ export class LogMessage {
   /**
    * The timestamp of the log message.
    */
-  public timestamp: number = new Date().getTime();
+  public timestamp: number = Date.now();
   /**
    * The level of the log message.
    */

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createTestLogger } from "../../../test/testLoggerFactory";
-import { type InMemoryReporter, LogLevel, type Logger } from "../../logger";
+import { type InMemoryReporter, type Logger, LogLevel } from "../../logger";
 import { nextTicks } from "../../utils";
 import { type MessageData, PubSubHub } from "../index";
 import { LoggerPlugin } from "./loggerPlugin";

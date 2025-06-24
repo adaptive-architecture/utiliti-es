@@ -29,7 +29,7 @@ describe("MultipleReporter", () => {
       reporter.register(item);
       await reporter[Symbol.asyncDispose]();
       expect(true).to.equal(true);
-    } catch (error) {
+    } catch (_error) {
       expect(false).to.equal(true);
     }
   });
@@ -41,7 +41,7 @@ describe("MultipleReporter", () => {
       reporter.register(item);
       await reporter[Symbol.asyncDispose]();
       expect(true).to.equal(true);
-    } catch (error) {
+    } catch (_error) {
       expect(false).to.equal(true);
     }
   });

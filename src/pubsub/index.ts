@@ -1,3 +1,3 @@
-export type { IPubSubHub, MessageHandler, MessageData, MessageValue } from "./contracts";
-export * from "./pubsub";
+export type { IPubSubHub, MessageData, MessageHandler, MessageValue } from "./contracts";
 export * from "./plugins";
+export * from "./pubsub";

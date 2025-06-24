@@ -23,7 +23,7 @@ export class MultipleReporter implements ILogsReporter {
    * @inheritdoc
    */
   async [Symbol.asyncDispose](): Promise<void> {
-    const proms = new Array<PromiseLike<void>>();
+    const proms: PromiseLike<void>[] = [];
 
     for (const reporter of this._reporters) {
       proms.push(reporter[Symbol.asyncDispose]());
