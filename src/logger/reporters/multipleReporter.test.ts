@@ -29,8 +29,8 @@ describe("MultipleReporter", () => {
       reporter.register(item);
       await reporter[Symbol.asyncDispose]();
       expect(true).to.equal(true);
-    } catch (_error) {
-      expect(false).to.equal(true);
+    } catch (error) {
+      expect(typeof error === "undefined").to.be.true("Expected no error, but got one");
     }
   });
 
@@ -41,8 +41,8 @@ describe("MultipleReporter", () => {
       reporter.register(item);
       await reporter[Symbol.asyncDispose]();
       expect(true).to.equal(true);
-    } catch (_error) {
-      expect(false).to.equal(true);
+    } catch (error) {
+      expect(typeof error === "undefined").to.be.true("Expected no error, but got one");
     }
   });
 });
