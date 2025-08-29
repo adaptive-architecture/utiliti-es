@@ -169,4 +169,53 @@ describe("Logger", () => {
       expect(rep.messages[0].message).to.equal("some message");
     });
   });
+
+  describe("_extractErrorDetails", () => {
+    function getTestFunction(): (e: unknown) => { message?: string; stack?: string } | undefined {
+      return (
+        logger as unknown as { _extractErrorDetails: (e: unknown) => { message?: string; stack?: string } }
+      )._extractErrorDetails.bind(logger);
+    }
+
+    it("should return undefined for undefined", () => {
+      expect(getTestFunction()(undefined)).to.equal(undefined);
+    });
+
+    it("should return undefined for null", () => {
+      expect(getTestFunction()(null)).to.equal(undefined);
+    });
+
+    it("should return message for string", () => {
+      expect(getTestFunction()("some error")).to.deep.equal({ message: "some error" });
+    });
+
+    it("should return message and stack for Error", () => {
+      const err = new Error("some error");
+      expect(getTestFunction()(err)).to.deep.equal({ message: err.message, stack: err.stack });
+    });
+
+    it("should return correct value for number", () => {
+      expect(getTestFunction()(42)?.message).to.equal("42");
+    });
+
+    it("should return correct value for boolean", () => {
+      expect(getTestFunction()(true)?.message).to.equal("true");
+    });
+
+    it("should return correct value for symbol", () => {
+      expect(getTestFunction()(Symbol("sym"))?.message).to.equal("Symbol(sym)");
+    });
+
+    it("should return correct value for bigint", () => {
+      expect(getTestFunction()(BigInt(42))?.message).to.equal("42");
+    });
+
+    it("should return correct value for object", () => {
+      expect(getTestFunction()({ key: "value" })?.message).to.equal(JSON.stringify({ key: "value" }));
+    });
+
+    it("should return correct value for array", () => {
+      expect(getTestFunction()([1, 2, 3])?.message).to.equal(JSON.stringify([1, 2, 3]));
+    });
+  });
 });

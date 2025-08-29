@@ -100,12 +100,13 @@ export class Logger implements ILogger {
   /**
    * @inheritdoc
    */
-  public log(level: LogLevel, message: string, e?: Error, params?: ExtraParams): void {
+  public log(level: LogLevel, message: string, error?: unknown, params?: ExtraParams): void {
     const msg = new LogMessage();
+    const errorDetails = this._extractErrorDetails(error);
     msg.level = level;
     msg.message = message;
-    msg.errorMessage = e?.message;
-    msg.stackTrace = e?.stack;
+    msg.errorMessage = errorDetails?.message;
+    msg.stackTrace = errorDetails?.stack;
     msg.extraParams = params;
 
     this.logMessage(msg);
@@ -120,5 +121,42 @@ export class Logger implements ILogger {
     setTimeout(() => {
       this.logMessageCore(message);
     }, 1);
+  }
+
+  private _extractErrorDetails(error: unknown): { message?: string; stack?: string } | undefined {
+    if (error instanceof Error) {
+      return { message: error.message, stack: error.stack };
+    }
+
+    switch (typeof error) {
+      case "string":
+        return { message: error };
+      case "object": {
+        const record = error as Record<string, unknown>;
+        if (record === null) {
+          break;
+        }
+
+        const r = {
+          message: (record.message ?? record.Message) as string | undefined,
+          stack: (record.stack ?? record.Stack ?? record.stackTrace ?? record.StackTrace) as string | undefined,
+        };
+
+        if (r.message === undefined) {
+          r.message = JSON.stringify(error);
+        }
+
+        return r;
+      }
+      default: {
+        const str = error as { toString?: () => string };
+        if (typeof str?.toString === "function") {
+          return { message: str.toString() };
+        }
+        break;
+      }
+    }
+
+    return undefined;
   }
 }

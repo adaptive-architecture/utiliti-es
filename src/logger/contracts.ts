@@ -142,7 +142,7 @@ export interface ILogger extends AsyncDisposable {
   /**
    * Log an event.
    */
-  log(level: LogLevel, message: string, e?: Error, params?: ExtraParams): void;
+  log(level: LogLevel, message: string, error?: unknown, params?: ExtraParams): void;
 
   /**
    * Log a message.
