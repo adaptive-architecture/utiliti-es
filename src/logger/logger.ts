@@ -142,10 +142,7 @@ export class Logger implements ILogger {
           stack: (record.stack ?? record.Stack ?? record.stackTrace ?? record.StackTrace) as string | undefined,
         };
 
-        if (r.message === undefined) {
-          r.message = JSON.stringify(error);
-        }
-
+        r.message ??= JSON.stringify(error);
         return r;
       }
       default: {

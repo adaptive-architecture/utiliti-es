@@ -2,6 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { nextTicks } from "../index";
 import { InMemoryReporter, Logger, LoggerOptions, LogLevel, LogMessage, ValuesEnricher } from "./index";
 
+function getTestFunction(logger: Logger): (e: unknown) => { message?: string; stack?: string } | undefined {
+  return (
+    logger as unknown as { _extractErrorDetails: (e: unknown) => { message?: string; stack?: string } }
+  )._extractErrorDetails.bind(logger);
+}
+
 describe("Logger", () => {
   let opt: LoggerOptions;
   let logger: Logger;
@@ -171,51 +177,45 @@ describe("Logger", () => {
   });
 
   describe("_extractErrorDetails", () => {
-    function getTestFunction(): (e: unknown) => { message?: string; stack?: string } | undefined {
-      return (
-        logger as unknown as { _extractErrorDetails: (e: unknown) => { message?: string; stack?: string } }
-      )._extractErrorDetails.bind(logger);
-    }
-
     it("should return undefined for undefined", () => {
-      expect(getTestFunction()(undefined)).to.equal(undefined);
+      expect(getTestFunction(logger)(undefined)).to.equal(undefined);
     });
 
     it("should return undefined for null", () => {
-      expect(getTestFunction()(null)).to.equal(undefined);
+      expect(getTestFunction(logger)(null)).to.equal(undefined);
     });
 
     it("should return message for string", () => {
-      expect(getTestFunction()("some error")).to.deep.equal({ message: "some error" });
+      expect(getTestFunction(logger)("some error")).to.deep.equal({ message: "some error" });
     });
 
     it("should return message and stack for Error", () => {
       const err = new Error("some error");
-      expect(getTestFunction()(err)).to.deep.equal({ message: err.message, stack: err.stack });
+      expect(getTestFunction(logger)(err)).to.deep.equal({ message: err.message, stack: err.stack });
     });
 
     it("should return correct value for number", () => {
-      expect(getTestFunction()(42)?.message).to.equal("42");
+      expect(getTestFunction(logger)(42)?.message).to.equal("42");
     });
 
     it("should return correct value for boolean", () => {
-      expect(getTestFunction()(true)?.message).to.equal("true");
+      expect(getTestFunction(logger)(true)?.message).to.equal("true");
     });
 
     it("should return correct value for symbol", () => {
-      expect(getTestFunction()(Symbol("sym"))?.message).to.equal("Symbol(sym)");
+      expect(getTestFunction(logger)(Symbol("sym"))?.message).to.equal("Symbol(sym)");
     });
 
     it("should return correct value for bigint", () => {
-      expect(getTestFunction()(BigInt(42))?.message).to.equal("42");
+      expect(getTestFunction(logger)(BigInt(42))?.message).to.equal("42");
     });
 
     it("should return correct value for object", () => {
-      expect(getTestFunction()({ key: "value" })?.message).to.equal(JSON.stringify({ key: "value" }));
+      expect(getTestFunction(logger)({ key: "value" })?.message).to.equal(JSON.stringify({ key: "value" }));
     });
 
     it("should return correct value for array", () => {
-      expect(getTestFunction()([1, 2, 3])?.message).to.equal(JSON.stringify([1, 2, 3]));
+      expect(getTestFunction(logger)([1, 2, 3])?.message).to.equal(JSON.stringify([1, 2, 3]));
     });
   });
 });

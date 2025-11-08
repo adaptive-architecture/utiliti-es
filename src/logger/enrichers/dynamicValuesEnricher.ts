@@ -32,7 +32,7 @@ export class DynamicValuesEnricher implements ILogMessageEnricher {
 
     const existingKeys = Object.keys(message.extraParams);
     for (const name in values) {
-      if (existingKeys.indexOf(name) !== -1 && !this._overrideExisting) {
+      if (existingKeys.includes(name) && !this._overrideExisting) {
         continue;
       }
 

@@ -143,7 +143,7 @@ export class PubSubHub implements IPubSubHub {
       this._subscriptions.set(structuredClone(topic), subscriptionTrackers);
     }
 
-    const subscriptionId = `sub-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const subscriptionId = `sub-${Date.now()}-${Math.random().toString(16).slice(2)}`; // NOSONAR S2245 Non-cryptographic randomness is acceptable here
     subscriptionTrackers.set(subscriptionId, { handler: handler, timeouts: [] });
     return subscriptionId;
   }

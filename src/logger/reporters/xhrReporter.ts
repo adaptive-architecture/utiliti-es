@@ -63,7 +63,7 @@ export class XhrReporter implements ILogsReporter {
    */
   public async [Symbol.asyncDispose](): Promise<void> {
     if (this._disposed) {
-      return Promise.resolve();
+      return;
     }
 
     await (this._reportActionPromise ?? this._processMessages());

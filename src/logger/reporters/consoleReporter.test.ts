@@ -29,18 +29,18 @@ class DummyConsole /* implements IReporterConsole */ {
   }
 }
 
-const logLevels: Array<string> = [];
+const logLevels: Array<keyof typeof LogLevel> = [];
 for (const level in Object.keys(LogLevel)) {
   if (Number.isNaN(level)) {
     continue;
   }
 
   const actualLevel = LogLevel[level];
-  if (typeof actualLevel === "undefined") {
+  if (actualLevel === undefined) {
     continue;
   }
 
-  logLevels.push(LogLevel[level]);
+  logLevels.push(LogLevel[level] as keyof typeof LogLevel);
 }
 
 async function publishAndVerifyMessage(dummy: DummyConsole, reporter: ConsoleReporter, item: LogMessage) {

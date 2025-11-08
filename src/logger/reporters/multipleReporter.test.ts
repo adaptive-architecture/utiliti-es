@@ -30,7 +30,7 @@ describe("MultipleReporter", () => {
       await reporter[Symbol.asyncDispose]();
       expect(true).to.equal(true);
     } catch (error) {
-      expect(typeof error === "undefined").to.be.true("Expected no error, but got one");
+      expect(error).to.be.undefined("Expected no error, but got one");
     }
   });
 
@@ -42,7 +42,7 @@ describe("MultipleReporter", () => {
       await reporter[Symbol.asyncDispose]();
       expect(true).to.equal(true);
     } catch (error) {
-      expect(typeof error === "undefined").to.be.true("Expected no error, but got one");
+      expect(error).to.be.undefined("Expected no error, but got one");
     }
   });
 });
