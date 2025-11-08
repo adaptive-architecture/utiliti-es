@@ -29,6 +29,10 @@ describe("pubsub", () => {
       receivedMessage = m;
     });
 
+    _hub.subscribe("test", (_t, _m) => {
+      // A second subscriber that does nothing.
+    });
+
     _hub.publish("test", publishedMessage);
     expect(receivedMessage).toBe(undefined); // The subscriber hasn't been called yet. Processing is async.
 
@@ -54,6 +58,13 @@ describe("pubsub", () => {
     expect(called).to.equal(1);
     assertNoHangingTimers(_hub);
 
+    _hub.unsubscribe(subscriberId);
+
+    _hub.publish("test", {});
+    await nextTicks(2);
+    expect(called).to.equal(1);
+
+    // Should be safe to unsubscribe again.
     _hub.unsubscribe(subscriberId);
 
     _hub.publish("test", {});

@@ -10,7 +10,7 @@ export function getLogReporterHandlers(handledRequestsContainer?: Array<Request>
 
       // Get the responseCode from the query string
       const responseCode = new URL(request.url).searchParams.get("responseCode");
-      let status = responseCode ? Number.parseInt(responseCode) : 200;
+      let status = responseCode ? Number.parseInt(responseCode, 10) : 200;
 
       if (Number.isNaN(status)) {
         status = 200;

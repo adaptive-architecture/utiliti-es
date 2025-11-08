@@ -37,6 +37,15 @@ describe("BroadcastChannelPlugin", () => {
     expect(receivedMessage).to.eql(publishedMessage);
   });
 
+  it("should not fail if dispose before init", async () => {
+    const p = new BroadcastChannelPlugin({ channelName: "test" });
+    try {
+      p[Symbol.dispose]();
+    } catch (e) {
+      expect(e).toBeUndefined();
+    }
+  });
+
   it("should not fail if bad dat is published", async () => {
     const p = new BroadcastChannelPlugin({ channelName: "test" });
     try {
@@ -56,7 +65,7 @@ describe("BroadcastChannelPlugin", () => {
     let receivedMessage: unknown;
     const chanel = new BroadcastChannel(_channelName);
     chanel.onmessage = (e) => {
-      receivedMessage = (e as MessageEvent<unknown>).data;
+      receivedMessage = (e as unknown as MessageEvent<unknown>).data;
     };
 
     _hub.publish("test", publishedMessage);
@@ -81,10 +90,10 @@ describe("BroadcastChannelPlugin", () => {
       hubMessages.push(m);
     });
     chanelA.onmessage = (e) => {
-      chanelAMessages.push((e as MessageEvent<unknown>).data);
+      chanelAMessages.push((e as unknown as MessageEvent<unknown>).data);
     };
     chanelB.onmessage = (e) => {
-      chanelBMessages.push((e as MessageEvent<unknown>).data);
+      chanelBMessages.push((e as unknown as MessageEvent<unknown>).data);
     };
     chanelA.postMessage({ topic: "test", message: publishedMessage });
     expect(chanelAMessages.length).to.eql(0);

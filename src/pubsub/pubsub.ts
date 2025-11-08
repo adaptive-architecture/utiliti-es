@@ -137,14 +137,14 @@ export class PubSubHub implements IPubSubHub {
       throw new Error("Invalid handler.");
     }
 
-    let subTrackers = this._subscriptions.get(topic);
-    if (!subTrackers) {
-      subTrackers = new Map();
-      this._subscriptions.set(structuredClone(topic), subTrackers);
+    let subscriptionTrackers = this._subscriptions.get(topic);
+    if (!subscriptionTrackers) {
+      subscriptionTrackers = new Map();
+      this._subscriptions.set(structuredClone(topic), subscriptionTrackers);
     }
 
-    const subscriptionId = `sub-${Date.now()}`;
-    subTrackers.set(subscriptionId, { handler: handler, timeouts: [] });
+    const subscriptionId = `sub-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    subscriptionTrackers.set(subscriptionId, { handler: handler, timeouts: [] });
     return subscriptionId;
   }
 
@@ -154,8 +154,8 @@ export class PubSubHub implements IPubSubHub {
       return;
     }
 
-    for (const subTrackers of this._subscriptions.values()) {
-      for (const tracker of subTrackers.values()) {
+    for (const subscriptionTrackers of this._subscriptions.values()) {
+      for (const tracker of subscriptionTrackers.values()) {
         while (true) {
           const timeout = tracker.timeouts.pop();
           if (!timeout) {
@@ -165,7 +165,7 @@ export class PubSubHub implements IPubSubHub {
         }
       }
 
-      if (subTrackers.delete(subscriptionId)) {
+      if (subscriptionTrackers.delete(subscriptionId)) {
         return;
       }
     }
