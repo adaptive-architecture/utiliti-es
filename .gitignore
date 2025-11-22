@@ -30,3 +30,5 @@ coverage
 docs/public/api-docs
 docs/.vitepress/dist
 docs/.vitepress/cache
+
+.claude
