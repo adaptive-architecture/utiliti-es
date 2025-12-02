@@ -51,16 +51,16 @@
     "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.3.7",
+    "@biomejs/biome": "2.3.8",
     "@types/node": "24.10.1",
-    "@vitest/coverage-v8": "4.0.13",
+    "@vitest/coverage-v8": "4.0.14",
     "jsdom": "27.2.0",
     "msw": "2.12.3",
-    "typedoc": "0.28.14",
+    "typedoc": "0.28.15",
     "typescript": "5.9.3",
-    "vite": "7.2.4",
+    "vite": "7.2.6",
     "vitepress": "1.6.4",
-    "vitest": "4.0.13"
+    "vitest": "4.0.14"
   },
   "msw": {
     "workerDirectory": [
