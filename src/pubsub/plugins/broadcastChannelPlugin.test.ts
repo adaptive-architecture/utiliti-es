@@ -5,6 +5,44 @@ import { nextTicks } from "../../utils";
 import { type MessageData, PubSubHub } from "../index";
 import { BroadcastChannelPlugin } from "./broadcastChannelPlugin";
 
+function createHubs(count: number) {
+  const channelName = `test-channel-${randomUUID()}`;
+  const plugins: BroadcastChannelPlugin[] = [];
+  const hubs: PubSubHub[] = [];
+  const messages: Array<Array<MessageData>> = [];
+
+  for (let i = 0; i < count; i++) {
+    const plugin = new BroadcastChannelPlugin({ channelName });
+    const hub = new PubSubHub({ plugins: [plugin] });
+    const hubMessages: Array<MessageData> = [];
+    hub.subscribe("test", (_t, m) => hubMessages.push(m));
+
+    plugins.push(plugin);
+    hubs.push(hub);
+    messages.push(hubMessages);
+  }
+
+  return {
+    channelName,
+    plugins,
+    hubs,
+    messages,
+    dispose() {
+      for (const hub of hubs) {
+        hub[Symbol.dispose]();
+      }
+    },
+  };
+}
+
+function expectCleanMessages(...messageLists: Array<Array<MessageData>>) {
+  for (const messages of messageLists) {
+    for (const msg of messages) {
+      expect(msg).not.toHaveProperty("__adaInternals");
+    }
+  }
+}
+
 describe("BroadcastChannelPlugin", () => {
   let _hub: PubSubHub;
   let _channelName: string;
@@ -156,36 +194,19 @@ describe("BroadcastChannelPlugin", () => {
   });
 
   it("should handle multiple plugin instances with different UUIDs correctly", async () => {
-    // Create two hubs with separate plugin instances
-    const channelName = `test-channel-${randomUUID()}`;
-    const plugin1 = new BroadcastChannelPlugin({ channelName });
-    const plugin2 = new BroadcastChannelPlugin({ channelName });
-    const hub1 = new PubSubHub({ plugins: [plugin1] });
-    const hub2 = new PubSubHub({ plugins: [plugin2] });
+    const { hubs, messages, dispose } = createHubs(2);
 
-    const hub1Messages: Array<MessageData> = [];
-    const hub2Messages: Array<MessageData> = [];
-
-    hub1.subscribe("test", (_t, m) => hub1Messages.push(m));
-    hub2.subscribe("test", (_t, m) => hub2Messages.push(m));
-
-    // Publish from hub1
     const message: MessageData = { id: "test", data: "hello" };
-    hub1.publish("test", message);
+    hubs[0].publish("test", message);
     await nextTicks(10);
 
-    // hub1 should receive its own message (local subscription)
-    expect(hub1Messages.length).to.eql(1);
-    expect(hub1Messages[0]).to.eql(message);
-    expect(hub1Messages[0]).not.toHaveProperty("__adaInternals");
+    expect(messages[0].length).to.eql(1);
+    expect(messages[0][0]).to.eql(message);
+    expect(messages[1].length).to.eql(1);
+    expect(messages[1][0]).to.eql(message);
+    expectCleanMessages(...messages);
 
-    // hub2 should receive the broadcast message
-    expect(hub2Messages.length).to.eql(1);
-    expect(hub2Messages[0]).to.eql(message);
-    expect(hub2Messages[0]).not.toHaveProperty("__adaInternals");
-
-    hub1[Symbol.dispose]();
-    hub2[Symbol.dispose]();
+    dispose();
   });
 
   it("should prevent infinite loop when a single hub receives its own broadcast", async () => {
@@ -227,96 +248,43 @@ describe("BroadcastChannelPlugin", () => {
   });
 
   it("should prevent infinite loop between multiple hub instances", async () => {
-    const channelName = `test-channel-${randomUUID()}`;
-    const plugin1 = new BroadcastChannelPlugin({ channelName });
-    const plugin2 = new BroadcastChannelPlugin({ channelName });
-    const plugin3 = new BroadcastChannelPlugin({ channelName });
-    const hub1 = new PubSubHub({ plugins: [plugin1] });
-    const hub2 = new PubSubHub({ plugins: [plugin2] });
-    const hub3 = new PubSubHub({ plugins: [plugin3] });
+    const { hubs, messages, dispose } = createHubs(3);
 
-    const hub1Messages: Array<MessageData> = [];
-    const hub2Messages: Array<MessageData> = [];
-    const hub3Messages: Array<MessageData> = [];
-
-    hub1.subscribe("test", (_t, m) => hub1Messages.push(m));
-    hub2.subscribe("test", (_t, m) => hub2Messages.push(m));
-    hub3.subscribe("test", (_t, m) => hub3Messages.push(m));
-
-    // Publish from hub1
     const message: MessageData = { id: "test", data: "hello" };
-    hub1.publish("test", message);
+    hubs[0].publish("test", message);
     await nextTicks(20);
 
-    // Each hub should receive exactly ONE message
-    expect(hub1Messages.length).to.eql(1, "Hub1 should receive its own message once");
-    expect(hub2Messages.length).to.eql(1, "Hub2 should receive the broadcast once");
-    expect(hub3Messages.length).to.eql(1, "Hub3 should receive the broadcast once");
+    expect(messages[0].length).to.eql(1, "Hub1 should receive its own message once");
+    expect(messages[1].length).to.eql(1, "Hub2 should receive the broadcast once");
+    expect(messages[2].length).to.eql(1, "Hub3 should receive the broadcast once");
+    expectCleanMessages(...messages);
 
-    // All messages should be clean (no internal metadata)
-    expect(hub1Messages[0]).not.toHaveProperty("__adaInternals");
-    expect(hub2Messages[0]).not.toHaveProperty("__adaInternals");
-    expect(hub3Messages[0]).not.toHaveProperty("__adaInternals");
+    expect(messages[0][0]).to.eql(message);
+    expect(messages[1][0]).to.eql(message);
+    expect(messages[2][0]).to.eql(message);
 
-    // Verify the message content is correct
-    expect(hub1Messages[0]).to.eql(message);
-    expect(hub2Messages[0]).to.eql(message);
-    expect(hub3Messages[0]).to.eql(message);
-
-    hub1[Symbol.dispose]();
-    hub2[Symbol.dispose]();
-    hub3[Symbol.dispose]();
+    dispose();
   });
 
   it("should handle rapid successive messages without infinite loops", async () => {
-    const channelName = `test-channel-${randomUUID()}`;
-    const plugin1 = new BroadcastChannelPlugin({ channelName });
-    const plugin2 = new BroadcastChannelPlugin({ channelName });
-    const hub1 = new PubSubHub({ plugins: [plugin1] });
-    const hub2 = new PubSubHub({ plugins: [plugin2] });
+    const { hubs, messages, dispose } = createHubs(2);
 
-    const hub1Messages: Array<MessageData> = [];
-    const hub2Messages: Array<MessageData> = [];
-
-    hub1.subscribe("test", (_t, m) => hub1Messages.push(m));
-    hub2.subscribe("test", (_t, m) => hub2Messages.push(m));
-
-    // Rapidly publish multiple messages
     const messageCount = 10;
     for (let i = 0; i < messageCount; i++) {
-      hub1.publish("test", { id: i, data: `message-${i}` });
+      hubs[0].publish("test", { id: i, data: `message-${i}` });
     }
 
     await nextTicks(30);
 
-    // Each hub should receive exactly the right number of messages
-    expect(hub1Messages.length).to.eql(messageCount, "Hub1 should receive all its own messages");
-    expect(hub2Messages.length).to.eql(messageCount, "Hub2 should receive all broadcast messages");
+    expect(messages[0].length).to.eql(messageCount, "Hub1 should receive all its own messages");
+    expect(messages[1].length).to.eql(messageCount, "Hub2 should receive all broadcast messages");
+    expectCleanMessages(...messages);
 
-    // Verify no metadata leaked
-    for (const msg of hub1Messages) {
-      expect(msg).not.toHaveProperty("__adaInternals");
-    }
-    for (const msg of hub2Messages) {
-      expect(msg).not.toHaveProperty("__adaInternals");
-    }
-
-    hub1[Symbol.dispose]();
-    hub2[Symbol.dispose]();
+    dispose();
   });
 
   it("should handle messages that already have __adaInternals property", async () => {
-    const channelName = `test-channel-${randomUUID()}`;
-    const plugin1 = new BroadcastChannelPlugin({ channelName });
-    const plugin2 = new BroadcastChannelPlugin({ channelName });
-    const hub1 = new PubSubHub({ plugins: [plugin1] });
-    const hub2 = new PubSubHub({ plugins: [plugin2] });
-
-    const hub1Messages: Array<MessageData> = [];
-    const hub2Messages: Array<MessageData> = [];
-
-    hub1.subscribe("test", (_t, m) => hub1Messages.push(m));
-    hub2.subscribe("test", (_t, m) => hub2Messages.push(m));
+    const { hubs, messages, dispose } = createHubs(2);
 
     // User publishes a message with __adaInternals (shouldn't happen, but test for safety)
     const message: MessageData = {
@@ -325,62 +293,37 @@ describe("BroadcastChannelPlugin", () => {
       __adaInternals: { someUserData: "foo" },
     } as MessageData;
 
-    hub1.publish("test", message);
+    hubs[0].publish("test", message);
     await nextTicks(20);
 
-    // Each hub should receive exactly one message
-    expect(hub1Messages.length).to.eql(1);
-    expect(hub2Messages.length).to.eql(1);
+    expect(messages[0].length).to.eql(1);
+    expect(messages[1].length).to.eql(1);
+    expectCleanMessages(...messages);
 
-    // The __adaInternals should be stripped from delivered messages
-    expect(hub1Messages[0]).not.toHaveProperty("__adaInternals");
-    expect(hub2Messages[0]).not.toHaveProperty("__adaInternals");
+    expect(messages[0][0]).to.have.property("id", "test");
+    expect(messages[0][0]).to.have.property("data", "value");
 
-    // Verify the actual data is preserved
-    expect(hub1Messages[0]).to.have.property("id", "test");
-    expect(hub1Messages[0]).to.have.property("data", "value");
-
-    hub1[Symbol.dispose]();
-    hub2[Symbol.dispose]();
+    dispose();
   });
 
   it("should prevent ping-pong infinite loops between two hubs", async () => {
-    const channelName = `test-channel-${randomUUID()}`;
-    const plugin1 = new BroadcastChannelPlugin({ channelName });
-    const plugin2 = new BroadcastChannelPlugin({ channelName });
-    const hub1 = new PubSubHub({ plugins: [plugin1] });
-    const hub2 = new PubSubHub({ plugins: [plugin2] });
+    const { hubs, messages, dispose } = createHubs(2);
 
-    const hub1Messages: Array<MessageData> = [];
-    const hub2Messages: Array<MessageData> = [];
-
-    hub1.subscribe("test", (_t, m) => hub1Messages.push(m));
-    hub2.subscribe("test", (_t, m) => hub2Messages.push(m));
-
-    // Publish from hub1
-    hub1.publish("test", { id: 1, data: "from-hub1" });
+    hubs[0].publish("test", { id: 1, data: "from-hub1" });
     await nextTicks(10);
 
-    // Immediately publish from hub2
-    hub2.publish("test", { id: 2, data: "from-hub2" });
+    hubs[1].publish("test", { id: 2, data: "from-hub2" });
     await nextTicks(10);
 
-    // Each hub should receive both messages (their own + the other's)
-    expect(hub1Messages.length).to.eql(2, "Hub1 should receive 2 messages total");
-    expect(hub2Messages.length).to.eql(2, "Hub2 should receive 2 messages total");
+    expect(messages[0].length).to.eql(2, "Hub1 should receive 2 messages total");
+    expect(messages[1].length).to.eql(2, "Hub2 should receive 2 messages total");
 
-    // Verify no infinite loop occurred (no duplicate messages)
-    const hub1Ids = hub1Messages.map((m) => m.id);
-    const hub2Ids = hub2Messages.map((m) => m.id);
+    const hub1Ids = messages[0].map((m) => m.id);
+    const hub2Ids = messages[1].map((m) => m.id);
     expect(hub1Ids).to.have.members([1, 2]);
     expect(hub2Ids).to.have.members([1, 2]);
+    expectCleanMessages(...messages);
 
-    // Verify no metadata leaked
-    for (const msg of [...hub1Messages, ...hub2Messages]) {
-      expect(msg).not.toHaveProperty("__adaInternals");
-    }
-
-    hub1[Symbol.dispose]();
-    hub2[Symbol.dispose]();
+    dispose();
   });
 });
