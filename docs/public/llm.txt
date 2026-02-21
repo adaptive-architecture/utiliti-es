@@ -1,0 +1,21 @@
+# @adapt-arch/utiliti-es
+
+> ECMAScript common utilities library providing reusable components for adaptive architecture patterns. Includes structured logging, publish/subscribe messaging, and common utility functions.
+
+The library is published as `@adapt-arch/utiliti-es` and targets ESNext with DOM support. It builds to ESM, CommonJS, UMD, and IIFE formats.
+
+## Docs
+
+- [Components Overview](https://adaptive-architecture.github.io/utiliti-es/components/): Overview of all library components
+- [Logger](https://adaptive-architecture.github.io/utiliti-es/components/logger/): Structured logging with configurable reporters and enrichers
+- [PubSub](https://adaptive-architecture.github.io/utiliti-es/components/pub-sub/): Event-based publish/subscribe system
+- [PubSub Plugins](https://adaptive-architecture.github.io/utiliti-es/components/pub-sub/plugins): BroadcastChannel and Logger plugins for PubSub
+- [Utils](https://adaptive-architecture.github.io/utiliti-es/components/utils/): Async utility functions (delay, nextTicks)
+
+## API
+
+- [API Reference](https://adaptive-architecture.github.io/utiliti-es/api-docs/index.html): Full TypeDoc-generated API documentation
+
+## Optional
+
+- [GitHub Repository](https://github.com/adaptive-architecture/utiliti-es): Source code and issue tracker

@@ -66,5 +66,9 @@
     "workerDirectory": [
       "public"
     ]
+  },
+  "overrides": {
+    "esbuild": ">=0.25.0",
+    "minimatch": ">=10.2.1"
   }
 }

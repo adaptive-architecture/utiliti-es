@@ -61,22 +61,21 @@ async function publishAndVerifyMessage(dummy: DummyConsole, reporter: ConsoleRep
 }
 
 describe("ConsoleReporter", () => {
-  it.each(logLevels)(
-    "should not fail when reporting a '%s' message even if the 'console' is missing",
-    async (level) => {
-      try {
-        const reporter = new ConsoleReporter(null as unknown as Console);
-        const item = new LogMessage();
-        item.level = LogLevel[level];
+  it.each(
+    logLevels,
+  )("should not fail when reporting a '%s' message even if the 'console' is missing", async (level) => {
+    try {
+      const reporter = new ConsoleReporter(null as unknown as Console);
+      const item = new LogMessage();
+      item.level = LogLevel[level];
 
-        reporter.register(item);
-        await reporter[Symbol.asyncDispose]();
-        expect(true).to.equal(true);
-      } catch (error) {
-        expect(false).to.equal(true, error as unknown as string);
-      }
-    },
-  );
+      reporter.register(item);
+      await reporter[Symbol.asyncDispose]();
+      expect(true).to.equal(true);
+    } catch (error) {
+      expect(false).to.equal(true, error as unknown as string);
+    }
+  });
 
   it(`should not "report" the "${LogLevel[LogLevel.None]}" message even after calling report`, async () => {
     const item = new LogMessage();

@@ -178,6 +178,15 @@ Entry point: `src/index.ts` (exports all public APIs)
 4. Export from `src/utils/index.ts`
 5. Update main `src/index.ts` if public API
 
+### LLM.txt (`docs/public/llm.txt`)
+
+The `docs/public/llm.txt` file follows the [llmstxt.org](https://llmstxt.org/) specification and is served at the root of the GitHub Pages site. It provides a machine-readable summary of the project documentation for AI agents.
+
+- **Keep it in sync** with documentation changes: when docs pages are added, removed, or renamed, update `llm.txt` accordingly
+- It is included in the site build via VitePress's `public` directory
+- Links must point to the rendered pages at `https://adaptive-architecture.github.io/utiliti-es/<page>`
+- Follow the spec structure: H1 (project name), blockquote (summary), body (modules), H2 sections (file lists with URLs)
+
 ## Troubleshooting
 
 - **Coverage failing**: Check `vite.config.ts` thresholds and ensure all code paths are tested

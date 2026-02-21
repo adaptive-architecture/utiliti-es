@@ -24,6 +24,7 @@ export default defineConfig({
             link: "/components/pub-sub",
             items: [{ text: "Plugins", link: "/components/pub-sub/plugins" }],
           },
+          { text: "Utils", link: "/components/utils" },
         ],
       },
     ],

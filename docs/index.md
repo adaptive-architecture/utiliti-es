@@ -14,12 +14,12 @@ hero:
     #   text: API Examples
     #   link: /api-examples
 
-# features:
-#   - title: Feature A
-#     details: Lorem ipsum dolor sit ...
-#   - title: Feature B
-#     details: Lorem ipsum dolor sit ...
-#   - title: Feature C
-#     details: Lorem ipsum dolor sit ...
+features:
+  - title: Logger
+    details: Structured logging with configurable reporters and enrichers. Send logs to the console, an HTTP endpoint, or multiple destinations at once.
+  - title: PubSub
+    details: Event-based publish/subscribe system with plugin support. Includes cross-tab messaging via the BroadcastChannel API.
+  - title: Utils
+    details: Common async utility functions like delay and nextTicks to reduce boilerplate in your application and tests.
 ---
 
