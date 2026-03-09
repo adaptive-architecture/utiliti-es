@@ -51,8 +51,8 @@
     "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.5",
-    "@types/node": "25.3.3",
+    "@biomejs/biome": "2.4.6",
+    "@types/node": "25.4.0",
     "@vitest/coverage-v8": "4.0.18",
     "jsdom": "28.1.0",
     "msw": "2.12.10",
