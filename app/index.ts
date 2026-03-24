@@ -5,6 +5,7 @@ import { logger } from "./logger.ts";
 
 const worker = setupWorker(...getLogReporterHandlers());
 worker.start().then(async () => {
+  await delay(1_000);
   logger.debug("Initialing the app!");
 
   const pubSubHub = new PubSubHub({

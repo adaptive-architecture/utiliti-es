@@ -113,7 +113,7 @@ export class PubSubHub implements IPubSubHub {
         const timeout: TimeoutRef = {};
         tracker.timeouts.push(timeout);
         timeout.ref = setTimeout(
-          (ctx, timeout, topic, message) => {
+          (ctx: SubscriptionTracker, timeout: TimeoutRef, topic: string, message: MessageData) => {
             ctx.handler(topic, message);
             clearTimeoutRef(tracker, timeout);
           },

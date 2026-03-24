@@ -41,7 +41,7 @@
     "clean": "rm -rf ./node_modules/ && rm -rf ./package-lock.json",
     "dev": "vite",
     "empty-output": "node ./ci-cd/empty-output.js",
-    "build": "tsc && vite build",
+    "build": "tsc -p tsconfig.build.json && vite build",
     "preview": "vite preview",
     "prelint": "node ./ci-cd/empty-output.js",
     "lint": "npx @biomejs/biome check --write ./",

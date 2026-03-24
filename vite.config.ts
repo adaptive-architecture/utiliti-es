@@ -1,33 +1,9 @@
-import { readdir, rm } from "node:fs/promises";
-import { resolve } from "node:path";
-
-import type { Plugin, ResolvedConfig } from "vite";
 import { defineConfig } from "vitest/config";
-
-function clearPublicFiles(): Plugin {
-  let _config: ResolvedConfig;
-  return {
-    name: "clear-public-files",
-    enforce: "post",
-    apply: "build",
-    configResolved(resolvedConfig) {
-      _config = resolvedConfig;
-    },
-    buildEnd() {
-      const dir = resolve(__dirname, _config.publicDir);
-      console.log("Clearing public files in", dir);
-      readdir(dir).then((files) => {
-        for (const file of files) {
-          rm(resolve(`${_config.build.outDir}/${file}`), { recursive: true });
-        }
-      });
-    },
-  };
-}
 
 export default defineConfig({
   build: {
     emptyOutDir: false,
+    copyPublicDir: false,
     lib: {
       entry: "./dist/index.js",
       name: "adaptArch_utilitiEs",
@@ -37,7 +13,6 @@ export default defineConfig({
     outDir: "./dist/bundle",
     minify: true,
   },
-  plugins: [clearPublicFiles()],
   test: {
     coverage: {
       exclude: ["**/ci-cd/**", "**/{app,public,test,docs,dist}/**", "**/**.test.ts", "vite.config.ts"],
