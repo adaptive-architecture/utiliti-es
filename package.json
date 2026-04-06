@@ -52,13 +52,13 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.10",
-    "@types/node": "25.5.0",
+    "@types/node": "25.5.2",
     "@vitest/coverage-v8": "4.1.2",
     "jsdom": "29.0.1",
-    "msw": "2.12.14",
+    "msw": "2.13.0",
     "typedoc": "0.28.18",
     "typescript": "6.0.2",
-    "vite": "8.0.3",
+    "vite": "8.0.5",
     "vitepress": "1.6.4",
     "vitest": "4.1.2"
   },
