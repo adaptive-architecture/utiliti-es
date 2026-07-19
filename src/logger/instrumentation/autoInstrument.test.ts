@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createTestLogger } from "../../../test/testLoggerFactory";
 import { nextTicks } from "../../utils";
-import { LogLevel } from "../contracts";
+import { type ILogger, LogLevel } from "../contracts";
 import { autoInstrument } from "./index";
 
 function dispatchRejectionEvent(reason: unknown): void {
@@ -165,5 +165,60 @@ describe("autoInstrument", () => {
     await nextTicks(2);
 
     expect(reporter.messages.length).to.equal(0);
+  });
+
+  it("should be idempotent per scope while instrumentation is active", async () => {
+    const { logger, reporter } = createTestLogger();
+    const restoreFirst = autoInstrument(logger);
+    const restoreSecond = autoInstrument(logger);
+
+    window.dispatchEvent(new ErrorEvent("error", { message: "boom" }));
+    await nextTicks(2);
+    expect(reporter.messages.length).to.equal(1);
+
+    restoreSecond(); // no-op: the first instrumentation stays active
+    window.dispatchEvent(new ErrorEvent("error", { message: "boom" }));
+    await nextTicks(2);
+    expect(reporter.messages.length).to.equal(2);
+
+    restoreFirst();
+    window.dispatchEvent(new ErrorEvent("error", { message: "boom" }));
+    await nextTicks(2);
+    expect(reporter.messages.length).to.equal(2);
+
+    restore = autoInstrument(logger); // re-instrumenting after restore works
+    window.dispatchEvent(new ErrorEvent("error", { message: "boom" }));
+    await nextTicks(2);
+    expect(reporter.messages.length).to.equal(3);
+  });
+
+  it("should apply defaults when options are passed explicitly as undefined", async () => {
+    const { logger, reporter } = createTestLogger();
+    restore = autoInstrument(logger, {
+      captureUnhandledRejections: undefined,
+      captureResourceErrors: undefined,
+      captureNetworkErrors: true,
+      captureFailedHttpStatus: undefined,
+      ignoreUrls: undefined,
+    });
+
+    dispatchRejectionEvent(new Error("still captured"));
+    await nextTicks(2);
+
+    expect(reporter.messages.length).to.equal(1);
+    expect(reporter.messages[0].errorMessage).to.equal("still captured");
+  });
+
+  it("should not throw when the logger itself throws", () => {
+    const throwingLogger = {
+      log: () => {
+        throw new Error("broken logger");
+      },
+    } as unknown as ILogger;
+    restore = autoInstrument(throwingLogger);
+
+    expect(() => {
+      window.dispatchEvent(new ErrorEvent("error", { message: "boom" }));
+    }).not.to.throw();
   });
 });

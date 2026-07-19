@@ -155,6 +155,17 @@ describe("autoInstrument (worker scope)", () => {
     expect(reporter.messages[0].errorMessage).to.equal("still works");
   });
 
+  it("should be a no-op when the scope does not support event listeners", () => {
+    // Simulates SSR setups that shim `globalThis.self = globalThis` without an EventTarget global.
+    vi.stubGlobal("self", {});
+    const { logger, reporter } = createTestLogger();
+
+    const restoreNow = autoInstrument(logger);
+
+    expect(() => restoreNow()).not.to.throw();
+    expect(reporter.messages.length).to.equal(0);
+  });
+
   it("should stop logging after restore is called", async () => {
     vi.stubGlobal("ErrorEvent", FakeErrorEvent);
     const { logger, reporter } = createTestLogger();

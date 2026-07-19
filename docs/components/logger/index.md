@@ -212,10 +212,14 @@ const restore = autoInstrument(logger, {
 });
 ```
 
-* **Network-level failures** (DNS errors, offline, CORS, timeouts) are reported as errors. Note that `fetch` resolves normally on 4xx/5xx responses — those are only reported (as warnings) when `captureFailedHttpStatus` is enabled, since failed statuses are often expected application flow.
-* **`ignoreUrls`** accepts strings and regular expressions. Strings are resolved against the current page URL and matched as prefixes, so relative URLs like `"/api/health"` work as expected; regular expressions are tested against the fully resolved request URL.
-* **The logger's own reporting endpoints are excluded automatically.** Any reporter that exposes an `endpoints` property (like `XhrReporter`; `MultipleReporter` aggregates its children's) has its URLs added to the ignore list. This prevents the classic feedback loop where a failing log-shipping request produces a new log entry, which is shipped and fails again, and so on. If you ship logs through a custom reporter, expose `endpoints` on it (or add its URL to `ignoreUrls`).
-* **Coexistence:** the wrappers are idempotent (calling `autoInstrument` twice does not double-wrap), and `restore()` will not undo the patch if another tool (e.g. Sentry, zone.js) wrapped `fetch`/`XMLHttpRequest` after us, to avoid breaking its chain.
+* **Network-level failures** (DNS errors, offline, CORS, timeouts) are reported as errors. Note that `fetch` resolves normally on 4xx/5xx responses — those are only reported (as warnings) when `captureFailedHttpStatus` is enabled, since failed statuses are often expected application flow. Only statuses of 400 and above are reported; opaque responses (`no-cors` requests, manual redirects — status 0) are not treated as failures.
+* **`ignoreUrls`** accepts strings and regular expressions. Strings are resolved against the current page URL and matched as path-boundary-aware prefixes, so `"/api/health"` also matches `/api/health/live` and `/api/health?probe=1` but not `/api/healthcheck`; regular expressions are tested against the fully resolved request URL.
+* **The logger's own reporting endpoints are excluded automatically.** Any reporter that exposes an `endpoints` property (like `XhrReporter`; `MultipleReporter` aggregates its children's) has its URLs excluded. The endpoints are read at request time, so an endpoint configured after `autoInstrument` was called is still respected. This prevents the classic feedback loop where a failing log-shipping request produces a new log entry, which is shipped and fails again, and so on. If you ship logs through a custom reporter, expose `endpoints` on it — and if you pass a custom `ILogger` implementation that does not expose a `reporter` property, add the shipping URL to `ignoreUrls` yourself.
+* **Coexistence:** the wrappers are idempotent (a second `autoInstrument` call while one is active is a complete no-op returning a no-op restore — call the original `restore()` first to re-instrument with different options), and `restore()` only unpatches the functions it still owns: if another tool (e.g. Sentry, zone.js) wrapped `fetch` or either `XMLHttpRequest` method after us, that wrapper is left in place to avoid breaking its chain.
+
+::: warning
+Captured request URLs are logged verbatim, including query strings, which can carry tokens or other sensitive values (e.g. `/reset?token=…`). Exclude such endpoints via `ignoreUrls`, or scrub the `url` extra parameter in an enricher before the message reaches your reporter.
+:::
 
 ## Checking log level
 
