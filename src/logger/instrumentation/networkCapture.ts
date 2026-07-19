@@ -30,6 +30,20 @@ function isInstrumented(fn: object): boolean {
   return (fn as Record<symbol, boolean>)[instrumentedMarker] === true;
 }
 
+/**
+ * Duck-typed rather than `instanceof Request`: works for Request objects from other
+ * realms and in scopes where the Request global is absent.
+ */
+function getRequestUrl(input: Parameters<typeof fetch>[0]): string {
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.href;
+  }
+  return input.url;
+}
+
 function resolveUrl(url: string, base: string | undefined): string {
   try {
     return new URL(url, base).href;
@@ -121,10 +135,7 @@ export function instrumentFetch(
   }
 
   const wrappedFetch = async (...args: Parameters<typeof fetch>): Promise<Response> => {
-    // Duck-typed rather than `instanceof Request`: works for Request objects from other
-    // realms and in scopes where the Request global is absent.
-    const input = args[0];
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    const url = getRequestUrl(args[0]);
     if (isIgnored(url)) {
       return originalFetch(...args);
     }
