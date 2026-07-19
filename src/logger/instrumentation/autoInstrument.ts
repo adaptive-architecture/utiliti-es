@@ -148,8 +148,10 @@ export function autoInstrument(logger: ILogger, options?: AutoInstrumentOptions)
     // Exclude the reporter's own endpoints so a failing log-shipping request never loops back
     // into the logger. The endpoints are read per request, so late-configured endpoints count.
     const isIgnored = createUrlMatcher(scope, ignoreUrls, () => logger.reporter?.endpoints);
-    restoreCallbacks.push(instrumentFetch(scope, log, isIgnored, captureFailedHttpStatus));
-    restoreCallbacks.push(instrumentXhr(scope, log, isIgnored, captureFailedHttpStatus));
+    restoreCallbacks.push(
+      instrumentFetch(scope, log, isIgnored, captureFailedHttpStatus),
+      instrumentXhr(scope, log, isIgnored, captureFailedHttpStatus),
+    );
   }
 
   return () => {

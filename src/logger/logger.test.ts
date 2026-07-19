@@ -84,15 +84,27 @@ describe("Logger", () => {
   });
 
   it("should swallow errors thrown by the reporter instead of surfacing an uncaught task error", async () => {
+    const rep = new InMemoryReporter();
+    let shouldThrow = true;
     opt.reporter = {
-      register: () => {
-        throw new Error("broken reporter");
+      register: (message: LogMessage) => {
+        if (shouldThrow) {
+          throw new Error("broken reporter");
+        }
+        rep.register(message);
       },
       [Symbol.asyncDispose]: () => Promise.resolve(),
     };
 
     logger.error("this message is dropped");
     await nextTicks(2);
+
+    shouldThrow = false;
+    logger.error("this message is delivered");
+    await nextTicks(2);
+
+    expect(rep.messages.length).to.equal(1);
+    expect(rep.messages[0].message).to.equal("this message is delivered");
   });
 
   describe("log method", () => {

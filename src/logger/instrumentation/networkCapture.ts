@@ -38,7 +38,7 @@ function resolveUrl(url: string, base: string | undefined): string {
   }
 }
 
-const boundaryChars = ["/", "?", "#"];
+const boundaryChars = new Set(["/", "?", "#"]);
 
 /**
  * Path-boundary-aware prefix match: `/logs` matches `/logs`, `/logs/batch` and `/logs?x=1`,
@@ -48,10 +48,10 @@ function matchesPrefix(resolved: string, prefix: string): boolean {
   if (!resolved.startsWith(prefix)) {
     return false;
   }
-  if (resolved.length === prefix.length || boundaryChars.includes(prefix[prefix.length - 1])) {
+  if (resolved.length === prefix.length || boundaryChars.has(prefix.at(-1) as string)) {
     return true;
   }
-  return boundaryChars.includes(resolved[prefix.length]);
+  return boundaryChars.has(resolved[prefix.length]);
 }
 
 /**
@@ -120,10 +120,11 @@ export function instrumentFetch(
     return () => {};
   }
 
-  const requestClass = typeof Request !== "undefined" ? Request : undefined;
-
   const wrappedFetch = async (...args: Parameters<typeof fetch>): Promise<Response> => {
-    const url = requestClass && args[0] instanceof requestClass ? args[0].url : String(args[0]);
+    // Duck-typed rather than `instanceof Request`: works for Request objects from other
+    // realms and in scopes where the Request global is absent.
+    const input = args[0];
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (isIgnored(url)) {
       return originalFetch(...args);
     }
