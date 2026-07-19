@@ -19,7 +19,7 @@ jobs:
           fetch-depth: 0 # In order for Sonar Scan to have all data.
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Get npm cache directory
