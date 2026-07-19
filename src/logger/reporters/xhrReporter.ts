@@ -49,6 +49,13 @@ export class XhrReporter implements ILogsReporter {
   /**
    * @inheritdoc
    */
+  public get endpoints(): string[] {
+    return [this._options.endpoint];
+  }
+
+  /**
+   * @inheritdoc
+   */
   public register(message: LogMessage): void {
     if (this._disposed) {
       return;

@@ -83,6 +83,12 @@ export interface ILogsReporter extends AsyncDisposable {
    * @param {LogMessage} message The message to register.
    */
   register(message: LogMessage): void;
+
+  /**
+   * The URLs of the remote endpoints this reporter ships logs to, if any.
+   * Used by the network instrumentation to exclude the reporter's own requests from capture.
+   */
+  readonly endpoints?: string[];
 }
 
 /**
@@ -104,6 +110,11 @@ export interface ILogMessageEnricher {
  * Interface for logging operations.
  */
 export interface ILogger extends AsyncDisposable {
+  /**
+   * The reporter used by this logger, if any.
+   */
+  readonly reporter?: ILogsReporter | null;
+
   /**
    * Indicates if the specified level will be logged.
    */

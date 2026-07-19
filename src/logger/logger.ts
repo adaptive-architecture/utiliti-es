@@ -1,4 +1,4 @@
-import { type ExtraParams, type ILogger, LogLevel, LogMessage } from "./contracts";
+import { type ExtraParams, type ILogger, type ILogsReporter, LogLevel, LogMessage } from "./contracts";
 import type { LoggerOptions } from "./loggerOptions";
 
 /**
@@ -14,6 +14,13 @@ export class Logger implements ILogger {
    */
   constructor(options: LoggerOptions) {
     this._options = options;
+  }
+
+  /**
+   * @inheritdoc
+   */
+  public get reporter(): ILogsReporter | null {
+    return this._options.reporter;
   }
 
   /**
@@ -114,12 +121,20 @@ export class Logger implements ILogger {
 
   /**
    * @inheritdoc
+   *
+   * Errors thrown by enrichers or the reporter are swallowed: logging runs in a deferred task,
+   * where an escaping exception would surface as an uncaught global error — and re-enter any
+   * global error capture (see `autoInstrument`) in an infinite loop.
    */
   public logMessage(message: LogMessage): void {
     if (!this.isEnabled(message.level)) return;
 
     setTimeout(() => {
-      this.logMessageCore(message);
+      try {
+        this.logMessageCore(message);
+      } catch {
+        // Intentionally dropped; the logging pipeline must never throw into the host application.
+      }
     }, 1);
   }
 
