@@ -180,7 +180,9 @@ Both `ValuesEnricher` and `DynamicValuesEnricher` accept an `overrideExisting` b
 * **Unhandled promise rejections** — the rejection reason is extracted defensively, whether it is an `Error` or not.
 * **Resource load failures** — failed `<img>`, `<script>`, `<link>`, etc. loads, reported with the resource URL.
 
-It only attaches event listeners (it does not patch any globals), so it cannot alter your application's behavior and coexists safely with other error-tracking tools. In non-browser environments (Node/SSR) it is a no-op.
+By default it only attaches event listeners (it does not patch any globals), so it cannot alter your application's behavior and coexists safely with other error-tracking tools. In non-browser environments (Node/SSR) it is a no-op.
+
+It attaches to whatever global scope it runs in (`self`), so it also works inside **web workers, shared workers and service workers**. Each worker is an isolated global scope: errors and network activity inside a worker are not visible to the page's instrumentation (and vice versa), so create a logger and call `autoInstrument` once in every context you want covered. In workers there is no DOM, so resource error capture never triggers; in service workers there is no `XMLHttpRequest`, so only `fetch` is wrapped for network capture (note that `XhrReporter` cannot ship logs from a service worker either — use a custom fetch-based reporter there).
 
 ``` ts
 import { autoInstrument } from "@adapt-arch/utiliti-es";
@@ -197,6 +199,23 @@ restore();
 ::: warning
 Errors thrown by scripts loaded from a different origin (e.g. a CDN) are masked by the browser and arrive as `"Script error."` with no stack trace. To get full details, load the script with `crossorigin="anonymous"` and make sure the server sends the appropriate CORS headers.
 :::
+
+### Network error capture
+
+There is no global event for failed `fetch`/`XMLHttpRequest` requests, so capturing them requires wrapping those globals. Because of that it is **opt-in** via `captureNetworkErrors`:
+
+``` ts
+const restore = autoInstrument(logger, {
+  captureNetworkErrors: true,       // default: false — wraps fetch and XMLHttpRequest
+  captureFailedHttpStatus: false,   // default: false — also report 4xx/5xx responses as warnings
+  ignoreUrls: [/analytics/, "/api/health"], // excluded from capture
+});
+```
+
+* **Network-level failures** (DNS errors, offline, CORS, timeouts) are reported as errors. Note that `fetch` resolves normally on 4xx/5xx responses — those are only reported (as warnings) when `captureFailedHttpStatus` is enabled, since failed statuses are often expected application flow.
+* **`ignoreUrls`** accepts strings and regular expressions. Strings are resolved against the current page URL and matched as prefixes, so relative URLs like `"/api/health"` work as expected; regular expressions are tested against the fully resolved request URL.
+* **The logger's own reporting endpoints are excluded automatically.** Any reporter that exposes an `endpoints` property (like `XhrReporter`; `MultipleReporter` aggregates its children's) has its URLs added to the ignore list. This prevents the classic feedback loop where a failing log-shipping request produces a new log entry, which is shipped and fails again, and so on. If you ship logs through a custom reporter, expose `endpoints` on it (or add its URL to `ignoreUrls`).
+* **Coexistence:** the wrappers are idempotent (calling `autoInstrument` twice does not double-wrap), and `restore()` will not undo the patch if another tool (e.g. Sentry, zone.js) wrapped `fetch`/`XMLHttpRequest` after us, to avoid breaking its chain.
 
 ## Checking log level
 

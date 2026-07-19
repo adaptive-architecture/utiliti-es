@@ -13,6 +13,13 @@ export class MultipleReporter implements ILogsReporter {
   /**
    * @inheritdoc
    */
+  get endpoints(): string[] {
+    return this._reporters.flatMap((reporter) => reporter.endpoints ?? []);
+  }
+
+  /**
+   * @inheritdoc
+   */
   register(message: LogMessage): void {
     for (const reporter of this._reporters) {
       reporter.register(message);

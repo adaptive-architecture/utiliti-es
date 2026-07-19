@@ -1,4 +1,4 @@
-import { type ExtraParams, type ILogger, LogLevel, LogMessage } from "./contracts";
+import { type ExtraParams, type ILogger, type ILogsReporter, LogLevel, LogMessage } from "./contracts";
 import type { LoggerOptions } from "./loggerOptions";
 
 /**
@@ -14,6 +14,13 @@ export class Logger implements ILogger {
    */
   constructor(options: LoggerOptions) {
     this._options = options;
+  }
+
+  /**
+   * @inheritdoc
+   */
+  public get reporter(): ILogsReporter | null {
+    return this._options.reporter;
   }
 
   /**
