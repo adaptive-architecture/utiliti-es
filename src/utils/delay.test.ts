@@ -15,8 +15,8 @@ describe("delay", () => {
       await delay(50, new Error("Test error"));
       expect(true, "The delay should have thrown an error.").toBe(false);
     } catch (e) {
-      expect(e).not.toBeNull();
-      expect(e.message).toBe("Test error");
+      expect(e).toBeInstanceOf(Error);
+      expect((e as Error).message).toBe("Test error");
     }
 
     const end = Date.now();

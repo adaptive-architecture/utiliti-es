@@ -52,7 +52,7 @@ describe("ValuesEnricher", () => {
     expect(item.extraParams?.foo).to.equal("buzz");
   });
 
-  it("should enrich the message but not override", () => {
+  it("should enrich the message and override", () => {
     const item = new LogMessage();
 
     const enricher = new ValuesEnricher(

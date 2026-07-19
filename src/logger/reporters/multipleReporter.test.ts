@@ -34,7 +34,7 @@ describe("MultipleReporter", () => {
     }
   });
 
-  it("should not fail if not child reporters", async () => {
+  it("should not fail if child reporters are null", async () => {
     try {
       const item = new LogMessage();
       const reporter = new MultipleReporter(null as unknown as ILogsReporter[]);

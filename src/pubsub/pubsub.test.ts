@@ -34,7 +34,7 @@ describe("pubsub", () => {
     });
 
     _hub.publish("test", publishedMessage);
-    expect(receivedMessage).toBe(undefined); // The subscriber hasn't been called yet. Processing is async.
+    expect(receivedMessage).toBeUndefined(); // The subscriber hasn't been called yet. Processing is async.
 
     await nextTicks(2);
 
@@ -96,13 +96,13 @@ describe("pubsub", () => {
   });
 
   it("should throw on invalid call to publish", () => {
-    expect(() => _hub.publish("", {})).to.throw();
-    expect(() => _hub.publish("my-topic", undefined as unknown as MessageData)).to.throw();
+    expect(() => _hub.publish("", {})).to.throw("Invalid topic.");
+    expect(() => _hub.publish("my-topic", undefined as unknown as MessageData)).to.throw("Invalid message.");
   });
 
   it("should throw on invalid call to subscribe", () => {
-    expect(() => _hub.subscribe("", () => {})).to.throw();
-    expect(() => _hub.subscribe("my-topic", undefined as unknown as MessageHandler)).to.throw();
+    expect(() => _hub.subscribe("", () => {})).to.throw("Invalid topic.");
+    expect(() => _hub.subscribe("my-topic", undefined as unknown as MessageHandler)).to.throw("Invalid handler.");
   });
 
   it("should handle invalid call to unsubscribe", () => {

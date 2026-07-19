@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { type SetupServerApi, setupServer } from "msw/node";
+import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { getLogReporterHandlers } from "../../../test/mocks/logReporterHandlers";
 import { delay, nextTicks } from "../../utils";
@@ -77,7 +77,7 @@ describe("HttpReporterOptions", () => {
 });
 
 describe("XhrReporter", () => {
-  let _server: SetupServerApi;
+  let _server: ReturnType<typeof setupServer>;
   let _xhrReporterOptions: XhrReporterOptions;
   let _xhrReporter: XhrReporter;
   let _testUuid: string;
@@ -115,8 +115,8 @@ describe("XhrReporter", () => {
 
   it("should throw an exception if options are not provided", () => {
     expect(() => {
-      const _r = new XhrReporter(null as unknown as XhrReporterOptions);
-    }).to.throw();
+      new XhrReporter(null as unknown as XhrReporterOptions);
+    }).to.throw('Argument "options" is required');
   });
 
   it("should not fail if calling dispose multiple times", async () => {
