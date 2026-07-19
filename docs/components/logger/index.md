@@ -172,6 +172,32 @@ Both `ValuesEnricher` and `DynamicValuesEnricher` accept an `overrideExisting` b
 * When `false` (recommended default) — if the log message already has an extra parameter with the same key, the enricher will **not** overwrite it.
 * When `true` — the enricher value always wins, even if the log message already contains that key.
 
+## Automatic error capture
+
+`autoInstrument()` registers global browser listeners so that errors your code did not catch are still reported through the logger. It captures:
+
+* **Uncaught JavaScript errors** — reported with the file name, line and column of the error.
+* **Unhandled promise rejections** — the rejection reason is extracted defensively, whether it is an `Error` or not.
+* **Resource load failures** — failed `<img>`, `<script>`, `<link>`, etc. loads, reported with the resource URL.
+
+It only attaches event listeners (it does not patch any globals), so it cannot alter your application's behavior and coexists safely with other error-tracking tools. In non-browser environments (Node/SSR) it is a no-op.
+
+``` ts
+import { autoInstrument } from "@adapt-arch/utiliti-es";
+
+const restore = autoInstrument(logger, {
+  captureUnhandledRejections: true, // default: true
+  captureResourceErrors: true,      // default: true
+});
+
+// Later (e.g. unit tests or SPA teardown), remove the listeners:
+restore();
+```
+
+::: warning
+Errors thrown by scripts loaded from a different origin (e.g. a CDN) are masked by the browser and arrive as `"Script error."` with no stack trace. To get full details, load the script with `crossorigin="anonymous"` and make sure the server sends the appropriate CORS headers.
+:::
+
 ## Checking log level
 
 Use `isEnabled()` to check whether a particular level would be logged before performing expensive work to build a message.
