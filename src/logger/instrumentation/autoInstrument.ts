@@ -1,5 +1,22 @@
 import { type ILogger, LogLevel } from "../contracts";
-import { createUrlMatcher, type GlobalScope, instrumentFetch, instrumentXhr, type LogFn } from "./networkCapture";
+import {
+  createUrlMatcher,
+  type GlobalScope,
+  instrumentFetch,
+  instrumentXhr,
+  type LogFn,
+  truncateUrl,
+} from "./networkCapture";
+
+/**
+ * The restore handle returned by {@link autoInstrument}: a plain function that can also be
+ * used with `using` (it implements `Symbol.dispose`).
+ */
+export type AutoInstrumentRestore = (() => void) & Disposable;
+
+function asRestore(fn: () => void): AutoInstrumentRestore {
+  return Object.assign(fn, { [Symbol.dispose]: fn });
+}
 
 /**
  * Options for {@link autoInstrument}.
@@ -46,6 +63,21 @@ export interface AutoInstrumentOptions {
    * @default []
    */
   ignoreUrls?: Array<string | RegExp>;
+  /**
+   * The maximum number of captured events reported per rate-limit window. When the cap is
+   * exceeded, one warning is logged and further captured events are dropped until the window
+   * resets. Protects against error storms (e.g. an error thrown in a render loop) flooding
+   * the logging pipeline and the reporting endpoint. Use `Infinity` to disable rate limiting.
+   *
+   * @default 128
+   */
+  maxEventsPerWindow?: number;
+  /**
+   * The length, in milliseconds, of the rate-limit window.
+   *
+   * @default 60000
+   */
+  rateLimitWindowMs?: number;
 }
 
 const instrumentedScopes = new WeakSet<EventTarget>();
@@ -73,16 +105,17 @@ const instrumentedScopes = new WeakSet<EventTarget>();
  *
  * @param {ILogger} logger The logger used to report the captured errors.
  * @param {AutoInstrumentOptions} options The instrumentation options.
- * @returns {() => void} A function that removes all registered listeners and restores any wrapped globals.
+ * @returns {AutoInstrumentRestore} A function that removes all registered listeners and restores any
+ * wrapped globals; it also implements `Symbol.dispose` for use with `using`.
  */
-export function autoInstrument(logger: ILogger, options?: AutoInstrumentOptions): () => void {
+export function autoInstrument(logger: ILogger, options?: AutoInstrumentOptions): AutoInstrumentRestore {
   if (typeof self === "undefined" || typeof self.addEventListener !== "function") {
-    return () => {};
+    return asRestore(() => {});
   }
 
   const scope: GlobalScope = self;
   if (instrumentedScopes.has(scope)) {
-    return () => {};
+    return asRestore(() => {});
   }
   instrumentedScopes.add(scope);
 
@@ -94,14 +127,38 @@ export function autoInstrument(logger: ILogger, options?: AutoInstrumentOptions)
     captureNetworkErrors = false,
     captureFailedHttpStatus = false,
     ignoreUrls = [],
+    maxEventsPerWindow = 128,
+    rateLimitWindowMs = 60_000,
   } = options ?? {};
 
   const restoreCallbacks: Array<() => void> = [];
+
+  let windowStart = 0;
+  let windowCount = 0;
 
   // The capture pipeline must never throw into the host application — an escaping exception
   // would itself surface as a global error and re-enter the capture handlers.
   const log: LogFn = (level, message, error, params) => {
     try {
+      if (maxEventsPerWindow !== Number.POSITIVE_INFINITY) {
+        const now = Date.now();
+        if (now - windowStart >= rateLimitWindowMs) {
+          windowStart = now;
+          windowCount = 0;
+        }
+        windowCount++;
+        if (windowCount > maxEventsPerWindow) {
+          if (windowCount === maxEventsPerWindow + 1) {
+            logger.log(
+              LogLevel.Warning,
+              `autoInstrument rate limit exceeded (${maxEventsPerWindow} events per ${rateLimitWindowMs}ms); dropping further captured events until the window resets.`,
+              undefined,
+              { source: "autoInstrument" },
+            );
+          }
+          return;
+        }
+      }
       logger.log(level, message, error, params);
     } catch {
       // Intentionally dropped; a broken logger must not take the instrumented app down with it.
@@ -121,9 +178,11 @@ export function autoInstrument(logger: ILogger, options?: AutoInstrumentOptions)
       });
     } else if (captureResourceErrors && typeof HTMLElement !== "undefined" && event.target instanceof HTMLElement) {
       const target = event.target as HTMLElement & { src?: string; href?: string };
+      // Truncated: a failed data: URL (e.g. an inline <img>) can be megabytes long.
+      const url = target.src ?? target.href ?? null;
       log(LogLevel.Error, `Resource failed to load: <${target.tagName.toLowerCase()}>`, undefined, {
         source: "resource",
-        url: target.src ?? target.href ?? null,
+        url: url === null ? null : truncateUrl(url),
       });
     }
   };
@@ -154,10 +213,10 @@ export function autoInstrument(logger: ILogger, options?: AutoInstrumentOptions)
     );
   }
 
-  return () => {
+  return asRestore(() => {
     instrumentedScopes.delete(scope);
     for (const restoreCallback of restoreCallbacks) {
       restoreCallback();
     }
-  };
+  });
 }
