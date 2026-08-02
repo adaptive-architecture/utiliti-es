@@ -52,8 +52,9 @@ async function publishAndVerifyMessage(dummy: DummyConsole, reporter: ConsoleRep
   expect(dummy.messages.length).to.equal(expectedCount);
 
   if (expectedCount > 0) {
-    expect(dummy.messages[0][0]).to.eql(item.message);
-    expect(dummy.messages[0][1]).to.eql(item);
+    expect(dummy.messages[0][0]).to.eql("%s");
+    expect(dummy.messages[0][1]).to.eql(item.message);
+    expect(dummy.messages[0][2]).to.eql(item);
   }
 
   await reporter[Symbol.asyncDispose]();

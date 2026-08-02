@@ -5,7 +5,7 @@ import type { ILogsReporter, LogMessage } from "../contracts";
  */
 export class XhrReporterOptions {
   /**
-   * Endpoint that receives the logs.
+   * Endpoint that receives the logs. Required; the reporter throws when it is empty.
    */
   public endpoint = "";
   /**
@@ -20,6 +20,16 @@ export class XhrReporterOptions {
    * The maximum interval, in milliseconds, to wait for the batch size to be achieved before reporting.
    */
   public interval = 2_000;
+  /**
+   * The maximum number of messages retained while the endpoint is unreachable.
+   * The oldest messages are dropped first.
+   */
+  public maxQueueSize = 1_000;
+  /**
+   * The maximum retry interval, in milliseconds. After a failed delivery the retry interval
+   * doubles on each consecutive failure up to this value, and resets on success.
+   */
+  public maxBackoffInterval = 30_000;
 
   /**
    * A function that can be used to transform the request before sending it.
@@ -33,10 +43,19 @@ export class XhrReporter implements ILogsReporter {
   private _reportActionTimeoutRef: ReturnType<typeof setTimeout> | undefined;
   private _reportActionPromise: Promise<void> | null;
   private _disposed: boolean;
+  private _consecutiveFailures: number;
 
   constructor(options: XhrReporterOptions) {
     if (!options) {
       throw new Error('Argument "options" is required');
+    }
+
+    if (!options.endpoint) {
+      throw new Error('A non-empty "endpoint" is required.');
+    }
+
+    if (!/^[A-Za-z]+$/.test(options.verb)) {
+      throw new Error(`Invalid HTTP verb "${options.verb}".`);
     }
 
     this._messageQueue = [];
@@ -44,6 +63,7 @@ export class XhrReporter implements ILogsReporter {
     this._reportActionTimeoutRef = undefined;
     this._reportActionPromise = null;
     this._disposed = false;
+    this._consecutiveFailures = 0;
   }
 
   /**
@@ -62,33 +82,69 @@ export class XhrReporter implements ILogsReporter {
     }
 
     this._messageQueue.push(message);
+    this._trimQueue();
+
+    if (
+      this._reportActionTimeoutRef &&
+      !this._reportActionPromise &&
+      this._consecutiveFailures === 0 &&
+      this._messageQueue.length >= this._options.batchSize
+    ) {
+      // A full batch accelerates a pending long-interval flush.
+      clearTimeout(this._reportActionTimeoutRef);
+      this._reportActionTimeoutRef = undefined;
+    }
+
     this._scheduleNextProcessAction();
   }
 
   /**
    * @inheritdoc
+   *
+   * Stops the flush timer and attempts one final delivery of the queued messages;
+   * messages that cannot be delivered are dropped.
    */
   public async [Symbol.asyncDispose](): Promise<void> {
     if (this._disposed) {
       return;
     }
-
-    await (this._reportActionPromise ?? this._processMessages());
     this._disposed = true;
+
+    clearTimeout(this._reportActionTimeoutRef);
+    this._reportActionTimeoutRef = undefined;
+
+    if (this._reportActionPromise) {
+      await this._reportActionPromise;
+    }
+
+    await this._processMessages();
+    this._messageQueue.length = 0;
+  }
+
+  private _trimQueue(): void {
+    const overflow = this._messageQueue.length - this._options.maxQueueSize;
+    if (overflow > 0) {
+      this._messageQueue.splice(0, overflow);
+    }
   }
 
   private _scheduleNextProcessAction(): void {
-    if (this._reportActionTimeoutRef) {
-      return; // Already scheduled
+    if (this._disposed || this._reportActionTimeoutRef || this._reportActionPromise) {
+      return; // Disposed, already scheduled, or currently processing.
     }
 
-    const interval = this._messageQueue.length >= this._options.batchSize ? 0 : this._options.interval;
+    if (this._messageQueue.length === 0) {
+      return; // Nothing to deliver; the next register() schedules a flush.
+    }
+
+    let interval = this._messageQueue.length >= this._options.batchSize ? 0 : this._options.interval;
+    if (this._consecutiveFailures > 0) {
+      interval = Math.min(this._options.interval * 2 ** this._consecutiveFailures, this._options.maxBackoffInterval);
+    }
 
     this._reportActionTimeoutRef = setTimeout(() => {
-      this._reportActionPromise = this._processMessages().then(() => {
-        const prevRef = this._reportActionTimeoutRef;
-        this._reportActionTimeoutRef = undefined;
-        clearTimeout(prevRef);
+      this._reportActionTimeoutRef = undefined;
+      this._reportActionPromise = this._processMessages().finally(() => {
         this._reportActionPromise = null;
         this._scheduleNextProcessAction();
       });
@@ -96,20 +152,37 @@ export class XhrReporter implements ILogsReporter {
   }
 
   private async _processMessages(): Promise<void> {
-    let messages: Array<LogMessage>;
-    let success: boolean;
-
     while (this._messageQueue.length > 0) {
-      messages = this._messageQueue.splice(0, Math.min(this._messageQueue.length, this._options.batchSize));
-      success = await this._sendMessagesBatch(messages);
+      const messages = this._messageQueue.splice(0, Math.min(this._messageQueue.length, this._options.batchSize));
+
+      let body: string;
+      try {
+        body = JSON.stringify(messages);
+      } catch {
+        continue; // A batch that cannot be serialized is dropped; later batches still ship.
+      }
+
+      let success: boolean;
+      try {
+        success = await this._sendMessagesBatch(body);
+      } catch {
+        success = false;
+      }
+
       if (!success) {
-        this._messageQueue.unshift(...messages);
+        this._consecutiveFailures += 1;
+        if (!this._disposed) {
+          this._messageQueue.unshift(...messages);
+          this._trimQueue();
+        }
         return;
       }
+
+      this._consecutiveFailures = 0;
     }
   }
 
-  private _sendMessagesBatch(messages: Array<LogMessage>): Promise<boolean> {
+  private _sendMessagesBatch(body: string): Promise<boolean> {
     return new Promise((resolve) => {
       const failureHandler = () => {
         resolve(false);
@@ -125,7 +198,7 @@ export class XhrReporter implements ILogsReporter {
       };
       request.onerror = failureHandler;
       request.onabort = failureHandler;
-      request.send(JSON.stringify(messages));
+      request.send(body);
     });
   }
 }

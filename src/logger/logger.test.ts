@@ -310,11 +310,19 @@ describe("Logger", () => {
     });
 
     it("should flush pending messages on dispose", async () => {
+      const received: LogMessage[] = [];
+      opt.reporter = {
+        register: (message: LogMessage) => {
+          received.push(message);
+        },
+        [Symbol.asyncDispose]: () => Promise.resolve(),
+      };
+
       logger.error("pending message");
       await logger[Symbol.asyncDispose]();
 
-      expect(rep.messages.length).to.equal(1);
-      expect(rep.messages[0].message).to.equal("pending message");
+      expect(received.length).to.equal(1);
+      expect(received[0].message).to.equal("pending message");
     });
 
     it("should drop messages logged after dispose", async () => {
