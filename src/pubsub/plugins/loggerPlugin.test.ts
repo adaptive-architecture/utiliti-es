@@ -49,7 +49,8 @@ describe("LoggerPlugin", () => {
     });
   });
 
-  it("should log the message event if publishing fails", async () => {
+  it("should not log anything when publishing fails validation", async () => {
+    // Arguments are validated before any plugin runs, so an invalid publish never reaches the logger.
     try {
       _hub.publish(undefined as unknown as string, undefined as unknown as MessageData);
       expect.fail("Should have thrown an error.");
@@ -59,9 +60,17 @@ describe("LoggerPlugin", () => {
 
     await nextTicks(2);
 
+    expect(_reporter.messages.length).to.equal(0);
+  });
+
+  it("should log null for context values another plugin removed", async () => {
+    const plugin = new LoggerPlugin(_logger, logLevel);
+    plugin.onPublish({});
+
+    await nextTicks(2);
+
     const loggedItem = _reporter.messages[0];
     expect(loggedItem.message).to.eql("Publishing message to topic: undefined");
-    expect(loggedItem.level).to.eql(logLevel);
     expect(loggedItem.extraParams).to.eql({
       topic: null,
       message: null,

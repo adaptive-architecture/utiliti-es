@@ -72,9 +72,9 @@ In order to send the messages to a place where they can be observed you need to 
 
 Currently the library provides the following reporters:
 * `ConsoleReporter` — outputs the logs to the console.
-* `InMemoryReporter` — stores the logs in memory. One use case for this is unit tests, where you do not want to send the logs to an actual remote server or you want to assert that a message was logged.
+* `InMemoryReporter` — stores the logs in memory. One use case for this is unit tests, where you do not want to send the logs to an actual remote server or you want to assert that a message was logged. An optional `maxMessages` constructor argument caps the retained messages (oldest are dropped first); disposing the reporter clears them.
 * `XhrReporter` — uses `XMLHttpRequest` to send the logs to a remote endpoint in batches.
-* `MultipleReporter` — combines multiple reporters so a single log message is sent to all of them.
+* `MultipleReporter` — combines multiple reporters so a single log message is sent to all of them. Reporters are isolated from each other: one reporter throwing does not prevent the others from receiving the message or from being disposed.
 
 ``` ts
 import {
@@ -103,11 +103,15 @@ loggerOptions.reporter = isDev
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `endpoint` | `string` | `""` | The URL that receives the logs |
-| `verb` | `string` | `"POST"` | HTTP method used when calling the endpoint |
+| `endpoint` | `string` | `""` | The URL that receives the logs. **Required** — the `XhrReporter` constructor throws when it is empty |
+| `verb` | `string` | `"POST"` | HTTP method used when calling the endpoint (must be a plain HTTP token, e.g. `GET`/`POST`/`PUT`) |
 | `batchSize` | `number` | `20` | Number of messages to accumulate before sending a batch |
 | `interval` | `number` | `2000` | Maximum time (ms) to wait before flushing the current batch |
+| `maxQueueSize` | `number` | `1000` | Maximum number of messages retained while the endpoint is unreachable; the oldest messages are dropped first |
+| `maxBackoffInterval` | `number` | `30000` | Cap (ms) for the retry backoff: after a failed delivery the retry interval doubles on each consecutive failure up to this value, and resets on success |
 | `requestTransform` | `(request: XMLHttpRequest) => void` | `undefined` | A callback to modify the `XMLHttpRequest` before it is sent (e.g. to add auth headers) |
+
+Failure handling: a batch that fails to send is re-queued (subject to `maxQueueSize`) and retried with exponential backoff. A batch that cannot be serialized to JSON at all is dropped so it cannot poison the queue. Disposing the reporter stops the flush timer and attempts one final delivery of the queued messages; messages that still cannot be delivered are dropped.
 
 ``` ts
 import { XhrReporterOptions, XhrReporter } from "@adapt-arch/utiliti-es";
@@ -172,6 +176,10 @@ Both `ValuesEnricher` and `DynamicValuesEnricher` accept an `overrideExisting` b
 * When `false` (recommended default) — if the log message already has an extra parameter with the same key, the enricher will **not** overwrite it.
 * When `true` — the enricher value always wins, even if the log message already contains that key.
 
+::: info Key safety
+Enrichers copy only the values object's **own** properties and skip the keys `__proto__`, `constructor` and `prototype`, so values coming from untrusted sources cannot pollute object prototypes through the logging pipeline. A `DynamicValuesEnricher` whose function throws leaves the message unchanged instead of breaking the pipeline.
+:::
+
 ## Automatic error capture
 
 `autoInstrument()` registers global browser listeners so that errors your code did not catch are still reported through the logger. It captures:
@@ -194,7 +202,23 @@ const restore = autoInstrument(logger, {
 
 // Later (e.g. unit tests or SPA teardown), remove the listeners:
 restore();
+
+// The restore handle also implements Symbol.dispose, so it works with `using`:
+// using restore = autoInstrument(logger);
 ```
+
+### Rate limiting
+
+Captured events are rate limited so an error storm (e.g. an error thrown on every animation frame) cannot flood the logging pipeline and the reporting endpoint:
+
+``` ts
+const restore = autoInstrument(logger, {
+  maxEventsPerWindow: 128, // default: 128 — use Infinity to disable rate limiting
+  rateLimitWindowMs: 60_000, // default: 60000
+});
+```
+
+When the cap is exceeded, a single warning is logged and further captured events are dropped until the window resets. Resource URLs and captured request URLs are truncated to 2048 characters (a failed inline `data:` image can otherwise put megabytes into a single log message).
 
 ::: warning
 Errors thrown by scripts loaded from a different origin (e.g. a CDN) are masked by the browser and arrive as `"Script error."` with no stack trace. To get full details, load the script with `crossorigin="anonymous"` and make sure the server sends the appropriate CORS headers.
@@ -251,7 +275,7 @@ logger.logMessage(msg);
 
 ## Disposal
 
-`Logger` implements `AsyncDisposable`. Disposing the logger disposes its reporter, which is important for the `XhrReporter` to flush any remaining batched messages.
+`Logger` implements `AsyncDisposable`. Disposing the logger first delivers any messages still waiting in its internal queue, then disposes its reporter, which is important for the `XhrReporter` to flush any remaining batched messages. Messages logged after disposal are dropped.
 
 ``` ts
 import { Logger, LoggerOptions, LogLevel, XhrReporter, XhrReporterOptions } from "@adapt-arch/utiliti-es";

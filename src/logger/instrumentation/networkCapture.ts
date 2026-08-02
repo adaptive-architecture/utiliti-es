@@ -31,6 +31,22 @@ function isInstrumented(fn: object): boolean {
 }
 
 /**
+ * The maximum length of a URL included in a log message. Failed `data:` URLs (e.g. inline
+ * images) can be megabytes long and would otherwise be queued and shipped in full.
+ */
+const MAX_LOGGED_URL_LENGTH = 2_048;
+
+/**
+ * Truncate a URL for logging purposes.
+ *
+ * @param {string} url The URL to truncate.
+ * @returns {string} The URL, capped at 2048 characters.
+ */
+export function truncateUrl(url: string): string {
+  return url.length > MAX_LOGGED_URL_LENGTH ? url.slice(0, MAX_LOGGED_URL_LENGTH) : url;
+}
+
+/**
  * Duck-typed rather than `instanceof Request`: works for Request objects from other
  * realms and in scopes where the Request global is absent.
  */
@@ -41,7 +57,8 @@ function getRequestUrl(input: Parameters<typeof fetch>[0]): string {
   if (input instanceof URL) {
     return input.href;
   }
-  return input.url;
+  // Guarded: a bogus fetch() argument must fail in the original fetch, not in the wrapper.
+  return typeof (input as Request | null | undefined)?.url === "string" ? (input as Request).url : String(input); // NOSONAR S6551 Default stringification is intentional: this is a log-only fallback for invalid fetch inputs.
 }
 
 function resolveUrl(url: string, base: string | undefined): string {
@@ -99,9 +116,24 @@ export function createUrlMatcher(
     }
   }
 
+  // Endpoint resolution is memoized: the matcher runs on every request, and re-resolving
+  // unchanged endpoints would allocate a URL object per endpoint per request.
+  // Compared by content (not identity): callers may mutate the same endpoints array in place.
+  let lastEndpoints: string[] | undefined;
+  let lastResolvedEndpoints: string[] = [];
+  const resolveEndpoints = (endpoints: string[]): string[] => {
+    if (lastEndpoints?.length === endpoints.length && lastEndpoints?.every((value, ix) => value === endpoints[ix])) {
+      return lastResolvedEndpoints;
+    }
+
+    lastEndpoints = endpoints.slice();
+    lastResolvedEndpoints = endpoints.filter((endpoint) => !!endpoint).map((endpoint) => resolveUrl(endpoint, base));
+    return lastResolvedEndpoints;
+  };
+
   return (url: string): boolean => {
-    const endpoints = getEndpoints() ?? [];
-    if (regexps.length === 0 && prefixes.length === 0 && endpoints.length === 0) {
+    const endpointPrefixes = resolveEndpoints(getEndpoints() ?? []);
+    if (regexps.length === 0 && prefixes.length === 0 && endpointPrefixes.length === 0) {
       return false;
     }
 
@@ -109,7 +141,7 @@ export function createUrlMatcher(
     return (
       regexps.some((regexp) => regexp.test(resolved)) ||
       prefixes.some((prefix) => matchesPrefix(resolved, prefix)) ||
-      endpoints.some((endpoint) => !!endpoint && matchesPrefix(resolved, resolveUrl(endpoint, base)))
+      endpointPrefixes.some((prefix) => matchesPrefix(resolved, prefix))
     );
   };
 }
@@ -140,17 +172,21 @@ export function instrumentFetch(
       return originalFetch(...args);
     }
 
+    const loggedUrl = truncateUrl(url);
     try {
       const response = await originalFetch(...args);
       // `status >= 400` rather than `!response.ok`: opaque responses (no-cors, manual redirects)
       // report ok=false with status 0 even on success and must not be logged as failures.
       if (captureFailedHttpStatus && response.status >= 400) {
-        log(LogLevel.Warning, `HTTP ${response.status} for ${url}`, undefined, { source: "fetch", url });
+        log(LogLevel.Warning, `HTTP ${response.status} for ${loggedUrl}`, undefined, {
+          source: "fetch",
+          url: loggedUrl,
+        });
       }
       return response;
     } catch (error) {
       // fetch only rejects on network-level failures (DNS, offline, CORS, abort).
-      log(LogLevel.Error, `Network error for ${url}`, error, { source: "fetch", url });
+      log(LogLevel.Error, `Network error for ${loggedUrl}`, error, { source: "fetch", url: loggedUrl });
       throw error;
     }
   };
@@ -217,7 +253,8 @@ export function instrumentXhr(
         if (!active || url === undefined || isIgnored(url)) {
           return;
         }
-        log(level, message(url), undefined, { source: "xhr", url });
+        const loggedUrl = truncateUrl(url);
+        log(level, message(loggedUrl), undefined, { source: "xhr", url: loggedUrl });
       };
       this.addEventListener("error", () => report(LogLevel.Error, (url) => `Network error for ${url}`));
       this.addEventListener("timeout", () => report(LogLevel.Error, (url) => `Network timeout for ${url}`));

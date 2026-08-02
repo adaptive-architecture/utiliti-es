@@ -9,7 +9,7 @@ import { type ILogsReporter, InMemoryReporter, MultipleReporter, XhrReporter, Xh
 import { delay, nextTicks } from "../../utils";
 import { Logger, LogLevel } from "../index";
 import { autoInstrument } from "./index";
-import { type GlobalScope, instrumentFetch, instrumentXhr } from "./networkCapture";
+import { createUrlMatcher, type GlobalScope, instrumentFetch, instrumentXhr } from "./networkCapture";
 
 const server = setupServer(...getLogReporterHandlers());
 
@@ -232,6 +232,30 @@ describe("autoInstrument network capture", () => {
       restore = undefined;
 
       expect(window.fetch).to.equal(undefined);
+    });
+
+    it("should not throw in the wrapper for a bogus fetch input", async () => {
+      const { logger, reporter } = createTestLogger();
+      restore = autoInstrument(logger, { captureNetworkErrors: true });
+
+      fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+      await expect(window.fetch({} as unknown as Request)).rejects.toThrow("Failed to fetch");
+      await nextTicks(2);
+
+      expect(reporter.messages.length).to.equal(1);
+      expect(reporter.messages[0].message).to.equal("Network error for [object Object]");
+    });
+
+    it("should truncate very long URLs in the log output", async () => {
+      const { logger, reporter } = createTestLogger();
+      restore = autoInstrument(logger, { captureNetworkErrors: true });
+
+      fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+      await expect(window.fetch(`https://api.example.com/?q=${"A".repeat(5_000)}`)).rejects.toThrow();
+      await nextTicks(2);
+
+      expect(reporter.messages.length).to.equal(1);
+      expect((reporter.messages[0].extraParams?.url as string).length).to.equal(2_048);
     });
   });
 
@@ -468,6 +492,25 @@ describe("autoInstrument network capture", () => {
       await nextTicks(2);
 
       expect(inMemoryReporter.messages.length).to.equal(0);
+    });
+  });
+
+  describe("url matcher endpoint memoization", () => {
+    it("should serve cached resolutions while endpoints are unchanged and re-resolve on change", () => {
+      const endpoints: string[] = ["/logs"];
+      const scope = { location: { href: "https://app.example.com/" } } as unknown as GlobalScope;
+      const matcher = createUrlMatcher(scope, [], () => endpoints);
+
+      expect(matcher("/logs/batch")).to.equal(true);
+      expect(matcher("/logs/batch")).to.equal(true); // Served from the cached resolution.
+      expect(matcher("/other/x")).to.equal(false);
+
+      // In-place mutation of the same array must be picked up.
+      endpoints.push("/other");
+      expect(matcher("/other/x")).to.equal(true);
+
+      endpoints.length = 0;
+      expect(matcher("/logs/batch")).to.equal(false);
     });
   });
 

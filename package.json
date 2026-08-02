@@ -17,8 +17,8 @@
     "LICENSE",
     "README.md"
   ],
-  "main": "dist/utiliti-es.umd.cjs",
-  "module": "dist/utiliti-es.js",
+  "main": "dist/bundle/utiliti-es.umd.cjs",
+  "module": "dist/bundle/utiliti-es.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {

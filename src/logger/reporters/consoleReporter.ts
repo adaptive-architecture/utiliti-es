@@ -62,7 +62,9 @@ export class ConsoleReporter implements ILogsReporter {
     }
 
     if (typeof fn === "function") {
-      fn.call(this._console, message.message, message);
+      // "%s" as the literal format string prevents format-directive injection (%c, %o, ...)
+      // through attacker-influenced message text.
+      fn.call(this._console, "%s", message.message, message);
     }
   }
 

@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { BroadcastChannel } from "node:worker_threads";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTicks } from "../../utils";
-import { type MessageData, PubSubHub } from "../index";
+import { type IPubSubHub, type MessageData, PubSubHub } from "../index";
 import { BroadcastChannelPlugin } from "./broadcastChannelPlugin";
 
 function createHubs(count: number) {
@@ -325,5 +325,179 @@ describe("BroadcastChannelPlugin", () => {
     expectCleanMessages(...messages);
 
     dispose();
+  });
+
+  describe("untrusted channel input", () => {
+    it("should ignore malformed payloads without throwing", async () => {
+      const chanel = new BroadcastChannel(_channelName);
+
+      const receivedMessages: Array<MessageData> = [];
+      _hub.subscribe("test", (_t, m) => {
+        receivedMessages.push(m);
+      });
+
+      chanel.postMessage(null);
+      chanel.postMessage(42);
+      chanel.postMessage("text");
+      chanel.postMessage([1, 2, 3]);
+      chanel.postMessage({ topic: "", message: {} });
+      chanel.postMessage({ topic: 42, message: {} });
+      chanel.postMessage({ topic: "test", message: null });
+      chanel.postMessage({ topic: "test", message: [1, 2] });
+      chanel.postMessage({ topic: "test", message: "text" });
+      await nextTicks(10);
+      chanel.close();
+
+      expect(receivedMessages.length).to.eql(0);
+    });
+
+    it("should strip prototype-polluting keys from received messages", async () => {
+      const chanel = new BroadcastChannel(_channelName);
+
+      const receivedMessages: Array<MessageData> = [];
+      _hub.subscribe("test", (_t, m) => {
+        receivedMessages.push(m);
+      });
+
+      const hostileMessage = JSON.parse('{"safe":"ok","__proto__":{"polluted":1},"nested":{"constructor":1}}');
+      chanel.postMessage({ topic: "test", message: hostileMessage });
+      await nextTicks(10);
+      chanel.close();
+
+      expect(receivedMessages.length).to.eql(1);
+      expect(receivedMessages[0].safe).to.eql("ok");
+      expect(Object.hasOwn(receivedMessages[0], "__proto__")).to.eql(false);
+      expect(Object.hasOwn(receivedMessages[0].nested as object, "constructor")).to.eql(false);
+      expect(Object.getPrototypeOf(receivedMessages[0])).to.eql(Object.prototype);
+      expect(({} as Record<string, unknown>).polluted).to.eql(undefined);
+    });
+
+    it("should discard __adaInternals arriving on the wire", async () => {
+      const chanel = new BroadcastChannel(_channelName);
+
+      const receivedMessages: Array<MessageData> = [];
+      _hub.subscribe("test", (_t, m) => {
+        receivedMessages.push(m);
+      });
+
+      // A hostile sender tries to spoof the loop-guard metadata.
+      chanel.postMessage({
+        topic: "test",
+        message: { id: "spoof", __adaInternals: { fromBroadcast: { instanceId: "x", channelName: _channelName } } },
+      });
+      await nextTicks(10);
+      chanel.close();
+
+      expect(receivedMessages.length).to.eql(1);
+      expect(receivedMessages[0]).to.eql({ id: "spoof" });
+    });
+
+    it("should contain a throwing hub.publish instead of surfacing an uncaught listener error", async () => {
+      const plugin = new BroadcastChannelPlugin({ channelName: _channelName });
+      const throwingHub: IPubSubHub = {
+        publish: () => {
+          throw new Error("broken hub");
+        },
+        subscribe: () => "sub-id",
+        unsubscribe: () => {},
+      };
+      plugin.init(throwingHub);
+
+      const chanel = new BroadcastChannel(_channelName);
+      chanel.postMessage({ topic: "test", message: { id: 1 } });
+      await nextTicks(10);
+      chanel.close();
+      plugin[Symbol.dispose]();
+
+      expect(true).to.eql(true); // Reaching this point without an unhandled error is the assertion.
+    });
+  });
+
+  it("should not amplify messages when two plugins share the same channel", async () => {
+    const pluginA = new BroadcastChannelPlugin({ channelName: _channelName });
+    const pluginB = new BroadcastChannelPlugin({ channelName: _channelName });
+    const hub = new PubSubHub({ plugins: [pluginA, pluginB] });
+
+    const receivedMessages: Array<MessageData> = [];
+    hub.subscribe("test", (_t, m) => {
+      receivedMessages.push(m);
+    });
+
+    const externalChannel = new BroadcastChannel(_channelName);
+    let echoedBack = 0;
+    externalChannel.onmessage = () => {
+      echoedBack++;
+    };
+
+    externalChannel.postMessage({ topic: "test", message: { id: "external" } });
+    await nextTicks(20);
+    externalChannel.close();
+    hub[Symbol.dispose]();
+
+    // Each plugin's listener republishes the external message once; neither may re-broadcast it.
+    expect(receivedMessages.length).to.eql(2);
+    expectCleanMessages(receivedMessages);
+    expect(echoedBack).to.eql(0, "The message must not be re-broadcast onto the channel it arrived on.");
+  });
+
+  describe("disposal and environment", () => {
+    it("should throw when init is called after dispose", () => {
+      const plugin = new BroadcastChannelPlugin({ channelName: _channelName });
+      plugin[Symbol.dispose]();
+
+      expect(() => plugin.init(_hub)).to.throw("BroadcastChannelPlugin has been disposed.");
+    });
+
+    it("should be safe to dispose twice and to publish after the plugin was disposed", () => {
+      _plugin[Symbol.dispose]();
+      expect(() => _plugin[Symbol.dispose]()).not.to.throw();
+
+      // The hub is still alive; the disposed plugin must skip its closed channel.
+      expect(() => _hub.publish("test", { id: 1 })).not.to.throw();
+    });
+
+    it("should throw a descriptive error when the BroadcastChannel API is missing", () => {
+      vi.stubGlobal("BroadcastChannel", undefined);
+      try {
+        expect(() => new BroadcastChannelPlugin({ channelName: _channelName })).to.throw(
+          "The BroadcastChannel API is not available in this environment.",
+        );
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it("should fall back to a non-crypto instance id when crypto.randomUUID is missing", async () => {
+      vi.stubGlobal("crypto", {});
+      let plugin: BroadcastChannelPlugin;
+      try {
+        plugin = new BroadcastChannelPlugin({ channelName: _channelName });
+      } finally {
+        vi.unstubAllGlobals();
+      }
+
+      const hub = new PubSubHub({ plugins: [plugin] });
+      const receivedMessages: Array<MessageData> = [];
+      hub.subscribe("test", (_t, m) => {
+        receivedMessages.push(m);
+      });
+
+      const chanel = new BroadcastChannel(_channelName);
+      chanel.postMessage({ topic: "test", message: { id: 1 } });
+      await nextTicks(10);
+      chanel.close();
+      hub[Symbol.dispose]();
+
+      expect(receivedMessages.length).to.eql(1);
+    });
+
+    it("should fall back to a non-crypto instance id when crypto itself is missing", () => {
+      vi.stubGlobal("crypto", undefined);
+      try {
+        expect(() => new BroadcastChannelPlugin({ channelName: _channelName })).not.to.throw();
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
   });
 });

@@ -1,3 +1,4 @@
+import { assignSafeValues } from "../../common/objectSafety";
 import type { ExtraParams, ILogMessageEnricher, LogMessage } from "../contracts";
 
 export class ValuesEnricher implements ILogMessageEnricher {
@@ -24,13 +25,6 @@ export class ValuesEnricher implements ILogMessageEnricher {
     }
     message.extraParams = message.extraParams || {};
 
-    const existingKeys = Object.keys(message.extraParams);
-    for (const name in this._values) {
-      if (existingKeys.includes(name) && !this._overrideExisting) {
-        continue;
-      }
-
-      message.extraParams[name] = this._values[name];
-    }
+    assignSafeValues(message.extraParams, this._values, this._overrideExisting);
   }
 }

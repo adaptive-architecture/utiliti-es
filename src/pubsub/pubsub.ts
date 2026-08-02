@@ -1,4 +1,5 @@
 import type { IPubSubHub, MessageData, MessageHandler } from "./contracts";
+import type { AdaInternals } from "./internalContracts";
 
 /**
  * The context for a PubSubPlugin action.
@@ -12,6 +13,13 @@ export type PubSubPluginContext = {
    * The message data.
    */
   message?: MessageData;
+  /**
+   * Internal metadata stripped from the message, preserved so every plugin in the chain can
+   * still observe it. Reserved for internal use.
+   *
+   * @internal
+   */
+  _adaInternals?: AdaInternals;
 };
 
 /**
@@ -50,15 +58,30 @@ type TimeoutRef = {
 
 type SubscriptionTracker = {
   handler: MessageHandler;
-  timeouts: Array<TimeoutRef>;
+  timeouts: Set<TimeoutRef>;
 };
 
 const clearTimeoutRef = (tracker: SubscriptionTracker, timeout: TimeoutRef) => {
   clearTimeout(timeout.ref);
   timeout.ref = undefined;
-  const ix = tracker.timeouts.indexOf(timeout);
-  tracker.timeouts.splice(ix, 1);
+  tracker.timeouts.delete(timeout);
 };
+
+const clearTrackerTimeouts = (tracker: SubscriptionTracker) => {
+  for (const timeout of tracker.timeouts) {
+    clearTimeout(timeout.ref);
+    timeout.ref = undefined;
+  }
+  tracker.timeouts.clear();
+};
+
+function isValidTopic(topic: unknown): topic is string {
+  return typeof topic === "string" && topic.length > 0;
+}
+
+function isValidMessage(message: unknown): message is MessageData {
+  return typeof message === "object" && message !== null && !Array.isArray(message);
+}
 
 /**
  * A PubSub implementation.
@@ -66,6 +89,7 @@ const clearTimeoutRef = (tracker: SubscriptionTracker, timeout: TimeoutRef) => {
 export class PubSubHub implements IPubSubHub {
   private readonly _subscriptions: Map<string, Map<string, SubscriptionTracker>> = new Map();
   private readonly _options: PubSubHubOptions | undefined;
+  private _disposed = false;
 
   /**
    *
@@ -83,8 +107,24 @@ export class PubSubHub implements IPubSubHub {
     }
   }
 
-  /** @inheritdoc */
+  /**
+   * @inheritdoc
+   *
+   * The topic and message are validated before any plugin runs, so plugins never observe
+   * (or broadcast) an invalid payload. Handler exceptions are contained and do not affect
+   * other subscribers. Throws when the hub has been disposed.
+   */
   publish(topic: string, message: MessageData): void {
+    this._throwIfDisposed();
+
+    if (!isValidTopic(topic)) {
+      throw new Error("Invalid topic.");
+    }
+
+    if (!isValidMessage(message)) {
+      throw new Error("Invalid message.");
+    }
+
     const context: PubSubPluginContext = {
       topic,
       message,
@@ -99,11 +139,12 @@ export class PubSubHub implements IPubSubHub {
       }
     }
 
-    if (!context.topic) {
+    // Plugins may replace the context values; re-validate before delivery.
+    if (!isValidTopic(context.topic)) {
       throw new Error("Invalid topic.");
     }
 
-    if (!context.message) {
+    if (!isValidMessage(context.message)) {
       throw new Error("Invalid message.");
     }
 
@@ -111,73 +152,95 @@ export class PubSubHub implements IPubSubHub {
     if (subTrackers) {
       for (const tracker of subTrackers.values()) {
         const timeout: TimeoutRef = {};
-        tracker.timeouts.push(timeout);
+        tracker.timeouts.add(timeout);
         timeout.ref = setTimeout(
-          (ctx: SubscriptionTracker, timeout: TimeoutRef, topic: string, message: MessageData) => {
-            ctx.handler(topic, message);
-            clearTimeoutRef(tracker, timeout);
+          (ctx: SubscriptionTracker, timeoutRef: TimeoutRef, msgTopic: string, msgData: MessageData) => {
+            try {
+              ctx.handler(msgTopic, msgData);
+            } catch {
+              // Contain subscriber exceptions; they must not surface as uncaught timer errors.
+            } finally {
+              clearTimeoutRef(ctx, timeoutRef);
+            }
           },
           0,
           tracker,
           timeout,
-          structuredClone(context.topic),
+          context.topic,
           structuredClone(context.message),
         );
       }
     }
   }
 
-  /** @inheritdoc */
-  subscribe(topic: string, handler: MessageHandler): string | null {
-    if (!topic) {
+  /**
+   * @inheritdoc
+   *
+   * Throws when the hub has been disposed.
+   */
+  subscribe(topic: string, handler: MessageHandler): string {
+    this._throwIfDisposed();
+
+    if (!isValidTopic(topic)) {
       throw new Error("Invalid topic.");
     }
 
-    if (!handler) {
-      throw new Error("Invalid handler.");
+    if (typeof handler !== "function") {
+      throw new TypeError("Invalid handler.");
     }
 
     let subscriptionTrackers = this._subscriptions.get(topic);
     if (!subscriptionTrackers) {
       subscriptionTrackers = new Map();
-      this._subscriptions.set(structuredClone(topic), subscriptionTrackers);
+      this._subscriptions.set(topic, subscriptionTrackers);
     }
 
     const subscriptionId = `sub-${Date.now()}-${Math.random().toString(16).slice(2)}`; // NOSONAR S2245 Non-cryptographic randomness is acceptable here
-    subscriptionTrackers.set(subscriptionId, { handler: handler, timeouts: [] });
+    subscriptionTrackers.set(subscriptionId, { handler: handler, timeouts: new Set() });
     return subscriptionId;
   }
 
-  /** @inheritdoc */
+  /**
+   * @inheritdoc
+   *
+   * Cancels only this subscription's pending deliveries; other subscribers are unaffected.
+   * Safe to call multiple times and after dispose.
+   */
   unsubscribe(subscriptionId: string): void {
-    if (!subscriptionId) {
+    if (!subscriptionId || this._disposed) {
       return;
     }
 
-    for (const subscriptionTrackers of this._subscriptions.values()) {
-      for (const tracker of subscriptionTrackers.values()) {
-        while (true) {
-          const timeout = tracker.timeouts.pop();
-          if (!timeout) {
-            break;
-          }
-          clearTimeoutRef(tracker, timeout);
-        }
+    for (const [topic, subscriptionTrackers] of this._subscriptions) {
+      const tracker = subscriptionTrackers.get(subscriptionId);
+      if (!tracker) {
+        continue;
       }
 
-      if (subscriptionTrackers.delete(subscriptionId)) {
-        return;
+      clearTrackerTimeouts(tracker);
+      subscriptionTrackers.delete(subscriptionId);
+      if (subscriptionTrackers.size === 0) {
+        this._subscriptions.delete(topic);
       }
+      return;
     }
   }
 
-  [Symbol.dispose]() {
-    for (const subTrackers of this._subscriptions.values()) {
-      for (const trackerId of subTrackers.keys()) {
-        this.unsubscribe(trackerId);
+  /**
+   * Dispose the hub: cancels all pending deliveries, removes all subscriptions and disposes
+   * the plugins. Idempotent; `publish` and `subscribe` throw after disposal.
+   */
+  [Symbol.dispose](): void {
+    if (this._disposed) {
+      return;
+    }
+    this._disposed = true;
+
+    for (const subscriptionTrackers of this._subscriptions.values()) {
+      for (const tracker of subscriptionTrackers.values()) {
+        clearTrackerTimeouts(tracker);
       }
     }
-
     this._subscriptions.clear();
 
     if (this._options?.plugins) {
@@ -186,10 +249,18 @@ export class PubSubHub implements IPubSubHub {
         if (!disposeFn) {
           continue;
         }
-        disposeFn.call(plugin);
+        try {
+          disposeFn.call(plugin);
+        } catch {
+          // A throwing plugin must not prevent disposing the remaining plugins.
+        }
       }
     }
+  }
 
-    return Promise.resolve();
+  private _throwIfDisposed(): void {
+    if (this._disposed) {
+      throw new Error("PubSubHub has been disposed.");
+    }
   }
 }

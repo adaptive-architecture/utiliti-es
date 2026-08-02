@@ -61,4 +61,27 @@ describe("DynamicValuesEnricher", () => {
     expect(item.extraParams).not.to.equal(undefined);
     expect(item.extraParams?.foo).to.equal("bar");
   });
+
+  it("should not touch the message if the values function throws", () => {
+    const item = new LogMessage();
+
+    const enricher = new DynamicValuesEnricher(() => {
+      throw new Error("Boom");
+    }, false);
+
+    expect(() => enricher.enrich(item)).not.toThrow();
+    expect(item.extraParams).to.equal(undefined);
+  });
+
+  it("should skip prototype-polluting keys", () => {
+    const item = new LogMessage();
+
+    const enricher = new DynamicValuesEnricher(() => JSON.parse('{"__proto__":{"polluted":1},"safe":"ok"}'), true);
+
+    enricher.enrich(item);
+    expect(item.extraParams?.safe).to.equal("ok");
+    expect(Object.hasOwn(item.extraParams ?? {}, "__proto__")).to.equal(false);
+    expect(Object.getPrototypeOf(item.extraParams)).to.equal(Object.prototype);
+    expect(({} as Record<string, unknown>).polluted).to.equal(undefined);
+  });
 });

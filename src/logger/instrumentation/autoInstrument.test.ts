@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import { createTestLogger } from "../../../test/testLoggerFactory";
-import { nextTicks } from "../../utils";
+import { delay, nextTicks } from "../../utils";
 import { type ILogger, LogLevel } from "../contracts";
 import { autoInstrument } from "./index";
 
@@ -220,5 +220,78 @@ describe("autoInstrument", () => {
     expect(() => {
       window.dispatchEvent(new ErrorEvent("error", { message: "boom" }));
     }).not.to.throw();
+  });
+
+  it("should truncate very long resource URLs", async () => {
+    const { logger, reporter } = createTestLogger();
+    restore = autoInstrument(logger);
+
+    const img = document.createElement("img");
+    img.src = `data:image/png;base64,${"A".repeat(5_000)}`;
+    dispatchResourceError(img);
+    await nextTicks(2);
+
+    expect(reporter.messages.length).to.equal(1);
+    expect((reporter.messages[0].extraParams?.url as string).length).to.equal(2_048);
+  });
+
+  it("should support disposal via Symbol.dispose", async () => {
+    const { logger, reporter } = createTestLogger();
+    const restoreNow = autoInstrument(logger);
+
+    restoreNow[Symbol.dispose]();
+
+    window.dispatchEvent(new ErrorEvent("error", { message: "boom" }));
+    await nextTicks(2);
+
+    expect(reporter.messages.length).to.equal(0);
+  });
+
+  describe("rate limiting", () => {
+    it("should cap captured events per window and log a single warning", async () => {
+      const { logger, reporter } = createTestLogger();
+      restore = autoInstrument(logger, { maxEventsPerWindow: 3 });
+
+      for (let ix = 0; ix < 10; ix++) {
+        window.dispatchEvent(new ErrorEvent("error", { message: `boom ${ix}` }));
+      }
+      await nextTicks(2);
+
+      expect(reporter.messages.length).to.equal(4);
+      expect(reporter.messages[0].message).to.equal("Uncaught error: boom 0");
+      expect(reporter.messages[2].message).to.equal("Uncaught error: boom 2");
+      expect(reporter.messages[3].level).to.equal(LogLevel.Warning);
+      expect(reporter.messages[3].message).to.contain("rate limit exceeded");
+      expect(reporter.messages[3].extraParams?.source).to.equal("autoInstrument");
+    });
+
+    it("should resume capturing when the window rolls over", async () => {
+      const { logger, reporter } = createTestLogger();
+      restore = autoInstrument(logger, { maxEventsPerWindow: 1, rateLimitWindowMs: 50 });
+
+      window.dispatchEvent(new ErrorEvent("error", { message: "first window" }));
+      window.dispatchEvent(new ErrorEvent("error", { message: "dropped" }));
+      await delay(60);
+      window.dispatchEvent(new ErrorEvent("error", { message: "second window" }));
+      await nextTicks(2);
+
+      const texts = reporter.messages.map((m) => m.message);
+      expect(texts[0]).to.equal("Uncaught error: first window");
+      expect(texts[1]).to.contain("rate limit exceeded");
+      expect(texts[2]).to.equal("Uncaught error: second window");
+      expect(reporter.messages.length).to.equal(3);
+    });
+
+    it("should disable rate limiting when maxEventsPerWindow is Infinity", async () => {
+      const { logger, reporter } = createTestLogger();
+      restore = autoInstrument(logger, { maxEventsPerWindow: Number.POSITIVE_INFINITY });
+
+      for (let ix = 0; ix < 200; ix++) {
+        window.dispatchEvent(new ErrorEvent("error", { message: `boom ${ix}` }));
+      }
+      await nextTicks(2);
+
+      expect(reporter.messages.length).to.equal(200);
+    });
   });
 });

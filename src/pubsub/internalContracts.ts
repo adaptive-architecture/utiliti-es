@@ -6,8 +6,13 @@ import type { MessageData } from "./contracts";
  * Users should not set this property manually.
  */
 export type AdaInternals = {
-  /** UUID of the BroadcastChannelPlugin instance that added this message */
-  fromBroadcast?: string;
+  /** Identifies the BroadcastChannelPlugin that received this message from its channel. */
+  fromBroadcast?: {
+    /** UUID of the plugin instance that added this metadata. */
+    instanceId: string;
+    /** The channel the message arrived on; used to prevent re-broadcast loops on that channel. */
+    channelName: string;
+  };
   // Future extensions: hopCount?, timestamp?, sourceTab?, etc.
 };
 
