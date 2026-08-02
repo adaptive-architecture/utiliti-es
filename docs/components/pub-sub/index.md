@@ -45,13 +45,23 @@ Published messages are passed through `structuredClone` before they reach subscr
 
 Messages are delivered asynchronously via `setTimeout(0)`. This means that `publish()` returns immediately and handlers are invoked on the next event-loop tick. Keep this in mind when writing tests — you may need to `await nextTicks()` to flush pending deliveries.
 
+## Error isolation
+
+A subscriber whose handler throws does not affect other subscribers or later deliveries — the exception is contained by the hub.
+
 ## Validation
 
-Both `publish()` and `subscribe()` validate their arguments. A falsy `topic` or `message` will throw an `Error`. Similarly, `subscribe()` throws if the `handler` is falsy.
+Both `publish()` and `subscribe()` validate their arguments before anything else happens:
+
+* `topic` must be a non-empty string.
+* `message` must be a non-null plain object (arrays and primitives are rejected).
+* `subscribe()` throws if the `handler` is not a function.
+
+Validation runs **before any plugin sees the message**, so a plugin (e.g. `BroadcastChannelPlugin`) can never broadcast an invalid payload; the context is validated again after the plugins ran, since plugins may modify it.
 
 ## Disposal
 
-`PubSubHub` implements `Symbol.dispose`. When disposed, all active subscriptions are cleared and any registered plugins are disposed.
+`PubSubHub` implements `Symbol.dispose`. When disposed, all pending deliveries are cancelled, all active subscriptions are cleared and any registered plugins are disposed. Disposal is idempotent; after disposal, `publish()` and `subscribe()` throw, while `unsubscribe()` is a safe no-op.
 
 ``` ts
 import { PubSubHub } from "@adapt-arch/utiliti-es";
