@@ -2,10 +2,40 @@ import { type ExtraParams, type ILogger, type ILogsReporter, LogLevel, LogMessag
 import type { LoggerOptions } from "./loggerOptions";
 
 /**
+ * The maximum length of an error serialized as a fallback message. Limits the size of
+ * arbitrary object graphs (and any data they contain) ending up in shipped log messages.
+ */
+const MAX_SERIALIZED_ERROR_LENGTH = 2_048;
+
+function asOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function safeSerializeError(error: unknown): string {
+  let serialized: string | undefined;
+  try {
+    serialized = JSON.stringify(error);
+  } catch {
+    try {
+      serialized = String(error);
+    } catch {
+      // Both serialization attempts failed; fall through to the placeholder.
+    }
+  }
+  serialized ??= "[unserializable error]";
+  return serialized.length > MAX_SERIALIZED_ERROR_LENGTH
+    ? serialized.slice(0, MAX_SERIALIZED_ERROR_LENGTH)
+    : serialized;
+}
+
+/**
  * Logging service.
  */
 export class Logger implements ILogger {
   private readonly _options: LoggerOptions;
+  private readonly _pending: LogMessage[] = [];
+  private _flushTimeoutRef: ReturnType<typeof setTimeout> | undefined;
+  private _disposed = false;
 
   /**
    * Constructor.
@@ -29,17 +59,33 @@ export class Logger implements ILogger {
    * @param {LogMessage} message The message to log.
    */
   private logMessageCore(message: LogMessage): void {
+    if (!this._options.reporter) {
+      return;
+    }
+
     message.name = this._options.name;
     for (const enricher of this._options.enrichers) {
       enricher.enrich(message);
     }
-    this._options.reporter?.register(message);
+    this._options.reporter.register(message);
   }
 
   /**
    * @inheritdoc
+   *
+   * Pending messages are flushed to the reporter before it is disposed. Messages logged
+   * after disposal are dropped.
    */
   public async [Symbol.asyncDispose](): Promise<void> {
+    if (this._disposed) {
+      return;
+    }
+    this._disposed = true;
+
+    clearTimeout(this._flushTimeoutRef);
+    this._flushTimeoutRef = undefined;
+    this._flushPending();
+
     await this._options.reporter?.[Symbol.asyncDispose]();
   }
 
@@ -127,15 +173,26 @@ export class Logger implements ILogger {
    * global error capture (see `autoInstrument`) in an infinite loop.
    */
   public logMessage(message: LogMessage): void {
-    if (!this.isEnabled(message.level)) return;
+    if (this._disposed || !this.isEnabled(message.level)) return;
 
-    setTimeout(() => {
+    this._pending.push(message);
+    if (!this._flushTimeoutRef) {
+      this._flushTimeoutRef = setTimeout(() => {
+        this._flushTimeoutRef = undefined;
+        this._flushPending();
+      }, 1);
+    }
+  }
+
+  private _flushPending(): void {
+    const pending = this._pending.splice(0);
+    for (const message of pending) {
       try {
         this.logMessageCore(message);
       } catch {
         // Intentionally dropped; the logging pipeline must never throw into the host application.
       }
-    }, 1);
+    }
   }
 
   private _extractErrorDetails(error: unknown): { message?: string; stack?: string } | undefined {
@@ -153,11 +210,15 @@ export class Logger implements ILogger {
         }
 
         const r = {
-          message: (record.message ?? record.Message) as string | undefined,
-          stack: (record.stack ?? record.Stack ?? record.stackTrace ?? record.StackTrace) as string | undefined,
+          message: asOptionalString(record.message) ?? asOptionalString(record.Message),
+          stack:
+            asOptionalString(record.stack) ??
+            asOptionalString(record.Stack) ??
+            asOptionalString(record.stackTrace) ??
+            asOptionalString(record.StackTrace),
         };
 
-        r.message ??= JSON.stringify(error);
+        r.message ??= safeSerializeError(error);
         return r;
       }
       default: {

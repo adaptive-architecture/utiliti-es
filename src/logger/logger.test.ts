@@ -256,5 +256,94 @@ describe("Logger", () => {
     it("should return correct value for array", () => {
       expect(getTestFunction(logger)([1, 2, 3])?.message).to.equal(JSON.stringify([1, 2, 3]));
     });
+
+    it("should use message/stack alternative property casings when they are strings", () => {
+      expect(getTestFunction(logger)({ Message: "alt", StackTrace: "trace" })).to.deep.equal({
+        message: "alt",
+        stack: "trace",
+      });
+    });
+
+    it("should ignore non-string message and stack properties", () => {
+      const details = getTestFunction(logger)({ message: { nested: true }, stack: 42 });
+      expect(details?.message).to.equal(JSON.stringify({ message: { nested: true }, stack: 42 }));
+      expect(details?.stack).to.equal(undefined);
+    });
+
+    it("should not throw for circular objects", () => {
+      const circular: Record<string, unknown> = {};
+      circular.self = circular;
+      expect(getTestFunction(logger)(circular)?.message).to.equal("[object Object]");
+    });
+
+    it("should not throw for objects that cannot be serialized at all", () => {
+      const hostile: Record<string, unknown> = Object.create(null);
+      hostile.self = hostile;
+      expect(getTestFunction(logger)(hostile)?.message).to.equal("[unserializable error]");
+    });
+
+    it("should handle a toJSON that returns undefined", () => {
+      expect(getTestFunction(logger)({ toJSON: () => undefined })?.message).to.equal("[unserializable error]");
+    });
+
+    it("should truncate very large serialized errors", () => {
+      const details = getTestFunction(logger)({ data: "x".repeat(5_000) });
+      expect(details?.message?.length).to.equal(2_048);
+    });
+  });
+
+  describe("batching and disposal", () => {
+    let rep: InMemoryReporter;
+    beforeEach(() => {
+      rep = new InMemoryReporter();
+      opt.reporter = rep;
+    });
+
+    it("should deliver multiple messages from a single flush, in order", async () => {
+      logger.error("first");
+      logger.error("second");
+      logger.error("third");
+
+      await nextTicks();
+
+      expect(rep.messages.map((m) => m.message)).to.deep.equal(["first", "second", "third"]);
+    });
+
+    it("should flush pending messages on dispose", async () => {
+      logger.error("pending message");
+      await logger[Symbol.asyncDispose]();
+
+      expect(rep.messages.length).to.equal(1);
+      expect(rep.messages[0].message).to.equal("pending message");
+    });
+
+    it("should drop messages logged after dispose", async () => {
+      await logger[Symbol.asyncDispose]();
+
+      logger.error("late message");
+      await nextTicks(2);
+
+      expect(rep.messages.length).to.equal(0);
+    });
+
+    it("should be safe to dispose twice", async () => {
+      await logger[Symbol.asyncDispose]();
+      await expect(logger[Symbol.asyncDispose]()).resolves.to.equal(undefined);
+    });
+
+    it("should not run enrichers when no reporter is configured", async () => {
+      let enricherCalls = 0;
+      opt.reporter = null;
+      opt.enrichers.push({
+        enrich: () => {
+          enricherCalls += 1;
+        },
+      });
+
+      logger.error("no reporter");
+      await nextTicks(2);
+
+      expect(enricherCalls).to.equal(0);
+    });
   });
 });
