@@ -1,4 +1,5 @@
 import type { IPubSubHub, MessageData, MessageHandler } from "./contracts";
+import type { AdaInternals } from "./internalContracts";
 
 /**
  * The context for a PubSubPlugin action.
@@ -12,6 +13,13 @@ export type PubSubPluginContext = {
    * The message data.
    */
   message?: MessageData;
+  /**
+   * Internal metadata stripped from the message, preserved so every plugin in the chain can
+   * still observe it. Reserved for internal use.
+   *
+   * @internal
+   */
+  _adaInternals?: AdaInternals;
 };
 
 /**

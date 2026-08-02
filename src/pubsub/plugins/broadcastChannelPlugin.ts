@@ -1,5 +1,6 @@
+import { omitDangerousKeys } from "../../common/objectSafety";
 import type { IPubSubHub, MessageData } from "../contracts";
-import type { MessageDataWithInternals } from "../internalContracts";
+import type { AdaInternals, MessageDataWithInternals } from "../internalContracts";
 import type { PubSubPlugin, PubSubPluginContext } from "../pubsub";
 
 type BroadcastMessage = {
@@ -15,45 +16,58 @@ export type Options = {
   channelName: string;
 };
 
+function newInstanceId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `bc-${Date.now()}-${Math.random().toString(16).slice(2)}`; // NOSONAR S2245 Non-cryptographic randomness is acceptable here
+}
+
 /**
  * A plugin that broadcasts PubSub messages across browser tabs/windows using BroadcastChannel API.
  *
- * Automatically prevents infinite loops by tagging messages with a unique instance ID.
+ * Automatically prevents infinite loops by tagging messages with the channel they arrived on.
  * The internal metadata (__adaInternals) is stripped before messages reach subscribers.
+ *
+ * Messages received from the channel are untrusted input from any same-origin context: they are
+ * validated (string topic, plain-object message) and prototype-polluting keys are removed before
+ * they are republished to the hub. Subscribers should still treat the payload values as untrusted.
  */
 export class BroadcastChannelPlugin implements PubSubPlugin {
   private readonly _options: Options;
   private readonly _channel: BroadcastChannel;
   private readonly _instanceId: string;
   private _eventListeners: null | ((event: MessageEvent<BroadcastMessage>) => void) = null;
+  private _disposed = false;
 
   /**
    * Constructor.
    *
+   * Throws when the BroadcastChannel API is not available in the current environment.
+   *
    * @param {Options} options The options.
    */
   constructor(options: Options) {
+    if (typeof BroadcastChannel === "undefined") {
+      throw new Error("The BroadcastChannel API is not available in this environment.");
+    }
+
     this._options = options;
     this._channel = new BroadcastChannel(this._options.channelName);
-    this._instanceId = crypto.randomUUID();
+    this._instanceId = newInstanceId();
   }
 
   /**
-   * Adds internal metadata to a message.
-   * Merges with existing __adaInternals if present.
+   * Adds internal metadata to a message, replacing any existing __adaInternals.
    *
    * @param {MessageData} message The message to add internals to.
-   * @param {Record<string, unknown>} internals The internals to add.
+   * @param {AdaInternals} internals The internals to add.
    * @returns {MessageData} The message with internals added.
    */
-  private _addInternals(message: MessageData, internals: Record<string, unknown>): MessageData {
-    const existing = (message as MessageDataWithInternals).__adaInternals || {};
+  private _addInternals(message: MessageData, internals: AdaInternals): MessageData {
     return {
-      ...message,
-      __adaInternals: {
-        ...existing,
-        ...internals,
-      },
+      ...this._removeInternals(message),
+      __adaInternals: internals,
     } as MessageData;
   }
 
@@ -68,45 +82,72 @@ export class BroadcastChannelPlugin implements PubSubPlugin {
     return clean;
   }
 
-  /** @inheritdoc */
+  /**
+   * @inheritdoc
+   *
+   * Throws when the plugin has been disposed (its channel is closed and cannot be reused).
+   */
   init(hub: IPubSubHub): void {
+    if (this._disposed) {
+      throw new Error("BroadcastChannelPlugin has been disposed.");
+    }
+
     if (this._eventListeners) {
       return;
     }
 
     this._eventListeners = (event: MessageEvent<BroadcastMessage>) => {
-      const message = event.data;
-      if (!message.topic || !message.message) {
-        return;
-      }
+      try {
+        // Anything on the channel is untrusted input from any same-origin context.
+        const data = event.data as unknown;
+        if (typeof data !== "object" || data === null) {
+          return;
+        }
 
-      // Add instance ID to prevent infinite loop due to broadcast
-      const messageWithMetadata = this._addInternals(message.message, {
-        fromBroadcast: this._instanceId,
-      });
-      hub.publish(message.topic, messageWithMetadata);
+        const { topic, message } = data as { topic?: unknown; message?: unknown };
+        if (typeof topic !== "string" || topic.length === 0) {
+          return;
+        }
+        if (typeof message !== "object" || message === null || Array.isArray(message)) {
+          return;
+        }
+
+        const sanitized = omitDangerousKeys(message as MessageData);
+
+        // Tag with the receiving channel to prevent an infinite re-broadcast loop. Any
+        // __adaInternals already on the wire is discarded (legitimate senders strip it).
+        const messageWithMetadata = this._addInternals(sanitized, {
+          fromBroadcast: {
+            instanceId: this._instanceId,
+            channelName: this._options.channelName,
+          },
+        });
+        hub.publish(topic, messageWithMetadata);
+      } catch {
+        // Malformed or hostile cross-tab input must never throw into the host application.
+      }
     };
     this._channel.addEventListener("message", this._eventListeners);
   }
 
   /** @inheritdoc */
   onPublish(context: PubSubPluginContext) {
-    if (!context.topic || !context.message) {
+    if (this._disposed || !context.topic || !context.message) {
       return;
     }
 
-    // Check if this message originated from this plugin instance
-    const internals = (context.message as MessageDataWithInternals).__adaInternals;
-    const isFromThisInstance = internals?.fromBroadcast === this._instanceId;
+    // The message's internals, or the ones an earlier plugin already stripped from it.
+    const internals = (context.message as MessageDataWithInternals).__adaInternals ?? context._adaInternals;
 
-    // Always clean __adaInternals metadata before subscribers receive it
-    // (whether it came from broadcast or was manually added by user)
-    if (internals) {
+    // Always clean __adaInternals metadata before subscribers receive it, but preserve it on
+    // the context so later plugins in the chain can still observe the message's origin.
+    if ((context.message as MessageDataWithInternals).__adaInternals) {
+      context._adaInternals = internals;
       context.message = this._removeInternals(context.message);
     }
 
-    // Don't re-broadcast if this message came from this instance's broadcast channel
-    if (isFromThisInstance) {
+    // Don't re-broadcast a message that arrived on this same channel: every peer already saw it.
+    if (internals?.fromBroadcast?.channelName === this._options.channelName) {
       return;
     }
 
@@ -118,9 +159,19 @@ export class BroadcastChannelPlugin implements PubSubPlugin {
     this._channel.postMessage(message);
   }
 
+  /**
+   * Dispose the plugin: removes the channel listener and closes the channel. Idempotent;
+   * the plugin cannot be re-initialized afterwards.
+   */
   [Symbol.dispose]() {
+    if (this._disposed) {
+      return;
+    }
+    this._disposed = true;
+
     if (this._eventListeners) {
       this._channel.removeEventListener("message", this._eventListeners);
+      this._eventListeners = null;
     }
     this._channel.close();
   }
