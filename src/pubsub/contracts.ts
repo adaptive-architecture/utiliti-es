@@ -33,7 +33,7 @@ export interface IPubSubHub {
    * @param {MessageHandler} handler The handler to call when a message is published.
    * @returns {string} The id of the handler subscription if the subscription is successful.
    **/
-  subscribe(topic: string, handler: MessageHandler): string | null;
+  subscribe(topic: string, handler: MessageHandler): string;
 
   /**
    * Unsubscribe from a topic.
