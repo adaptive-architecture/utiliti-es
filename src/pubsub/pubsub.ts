@@ -186,7 +186,7 @@ export class PubSubHub implements IPubSubHub {
     }
 
     if (typeof handler !== "function") {
-      throw new Error("Invalid handler.");
+      throw new TypeError("Invalid handler.");
     }
 
     let subscriptionTrackers = this._subscriptions.get(topic);

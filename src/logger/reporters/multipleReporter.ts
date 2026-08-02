@@ -20,7 +20,7 @@ export class MultipleReporter implements ILogsReporter {
   get endpoints(): string[] {
     const fresh = this._reporters.flatMap((reporter) => reporter.endpoints ?? []);
     const cached = this._cachedEndpoints;
-    if (cached && cached.length === fresh.length && cached.every((value, ix) => value === fresh[ix])) {
+    if (cached?.length === fresh.length && cached?.every((value, ix) => value === fresh[ix])) {
       return cached;
     }
 

@@ -58,7 +58,7 @@ function getRequestUrl(input: Parameters<typeof fetch>[0]): string {
     return input.href;
   }
   // Guarded: a bogus fetch() argument must fail in the original fetch, not in the wrapper.
-  return typeof (input as Request | null | undefined)?.url === "string" ? (input as Request).url : String(input);
+  return typeof (input as Request | null | undefined)?.url === "string" ? (input as Request).url : String(input); // NOSONAR S6551 Default stringification is intentional: this is a log-only fallback for invalid fetch inputs.
 }
 
 function resolveUrl(url: string, base: string | undefined): string {
@@ -122,11 +122,7 @@ export function createUrlMatcher(
   let lastEndpoints: string[] | undefined;
   let lastResolvedEndpoints: string[] = [];
   const resolveEndpoints = (endpoints: string[]): string[] => {
-    if (
-      lastEndpoints &&
-      lastEndpoints.length === endpoints.length &&
-      lastEndpoints.every((value, ix) => value === endpoints[ix])
-    ) {
+    if (lastEndpoints?.length === endpoints.length && lastEndpoints?.every((value, ix) => value === endpoints[ix])) {
       return lastResolvedEndpoints;
     }
 

@@ -49,7 +49,7 @@ export class BroadcastChannelPlugin implements PubSubPlugin {
    */
   constructor(options: Options) {
     if (typeof BroadcastChannel === "undefined") {
-      throw new Error("The BroadcastChannel API is not available in this environment.");
+      throw new TypeError("The BroadcastChannel API is not available in this environment.");
     }
 
     this._options = options;

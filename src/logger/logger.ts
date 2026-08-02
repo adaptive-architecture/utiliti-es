@@ -176,12 +176,10 @@ export class Logger implements ILogger {
     if (this._disposed || !this.isEnabled(message.level)) return;
 
     this._pending.push(message);
-    if (!this._flushTimeoutRef) {
-      this._flushTimeoutRef = setTimeout(() => {
-        this._flushTimeoutRef = undefined;
-        this._flushPending();
-      }, 1);
-    }
+    this._flushTimeoutRef ??= setTimeout(() => {
+      this._flushTimeoutRef = undefined;
+      this._flushPending();
+    }, 1);
   }
 
   private _flushPending(): void {
