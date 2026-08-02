@@ -1,3 +1,4 @@
+import { assignSafeValues } from "../../common/objectSafety";
 import type { ExtraParams, ILogMessageEnricher, LogMessage } from "../contracts";
 
 /**
@@ -24,19 +25,18 @@ export class DynamicValuesEnricher implements ILogMessageEnricher {
    * @inheritdoc
    */
   enrich(message: LogMessage): void {
-    const values = typeof this._valuesFn === "function" ? this._valuesFn() : undefined;
+    let values: ExtraParams | undefined;
+    try {
+      values = typeof this._valuesFn === "function" ? this._valuesFn() : undefined;
+    } catch {
+      // A throwing values function must not break the logging pipeline.
+      return;
+    }
     if (!values) {
       return;
     }
     message.extraParams = message.extraParams || {};
 
-    const existingKeys = Object.keys(message.extraParams);
-    for (const name in values) {
-      if (existingKeys.includes(name) && !this._overrideExisting) {
-        continue;
-      }
-
-      message.extraParams[name] = values[name];
-    }
+    assignSafeValues(message.extraParams, values, this._overrideExisting);
   }
 }
