@@ -198,6 +198,7 @@ export class XhrReporter implements ILogsReporter {
       };
       request.onerror = failureHandler;
       request.onabort = failureHandler;
+      request.ontimeout = failureHandler;
       request.send(body);
     });
   }

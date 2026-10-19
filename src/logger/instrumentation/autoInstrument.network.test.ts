@@ -255,7 +255,7 @@ describe("autoInstrument network capture", () => {
       await nextTicks(2);
 
       expect(reporter.messages.length).to.equal(1);
-      expect((reporter.messages[0].extraParams?.url as string).length).to.equal(2_048);
+      expect(reporter.messages[0].extraParams?.url).toHaveLength(2_048);
     });
   });
 
